@@ -1,0 +1,89 @@
+defaultProfile: app-json
+
+profiles:
+  app-json:
+    parser: json
+    timestampField: time
+    levelField: level
+    messageField: msg
+    fields:
+      - service
+      - request_id
+      - trace_id
+      - method
+      - path
+      - status
+      - duration
+    filters:
+      exclude:
+        - field: path
+          op: contains
+          value: /health
+        - field: path
+          op: contains
+          value: /metrics
+    colors:
+      levels:
+        TRACE: dim
+        DEBUG: dim
+        INFO: cyan
+        WARN: yellow
+        ERROR: red
+        FATAL: magenta
+      fields:
+        service: magenta
+        request_id: dim
+        trace_id: dim
+        method: cyan
+        status: yellow
+      timestamp: dim
+      message: reset
+
+  pipe:
+    parser: split
+    timestampField: time
+    levelField: level
+    messageField: message
+    split:
+      delimiter: "|"
+      fields:
+        - time
+        - level
+        - component
+        - message
+    fields:
+      - component
+    colors:
+      levels:
+        INFO: cyan
+        WARN: yellow
+        ERROR: red
+      fields:
+        component: magenta
+
+  nginx:
+    parser: split
+    timestampField: time
+    levelField: level
+    messageField: message
+    split:
+      delimiter: " "
+      fields:
+        - remote_addr
+        - ident
+        - user
+        - time
+        - method
+        - path
+        - status
+        - size
+    fields:
+      - remote_addr
+      - method
+      - path
+      - status
+      - size
+    colors:
+      fields:
+        method: cyan
+        status: yellow
