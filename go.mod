@@ -3,7 +3,7 @@ module github.com/gi8lino/loggo
 go 1.26.2
 
 require (
-	github.com/charmbracelet/bubbletea v1.3.10
+	github.com/charmbracelet/bubbletea/v2 v2.0.6
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/containeroo/tinyflags v0.0.75
 	gopkg.in/yaml.v3 v3.0.1
