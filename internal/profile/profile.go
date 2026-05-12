@@ -2,6 +2,7 @@ package profile
 
 import (
 	"maps"
+	"slices"
 	"strings"
 )
 
@@ -24,6 +25,7 @@ type Profile struct {
 	LevelField     string      `yaml:"levelField"`
 	MessageField   string      `yaml:"messageField"`
 	Fields         []string    `yaml:"fields"`
+	HiddenFields   []string    `yaml:"hiddenFields"`
 	Format         string      `yaml:"format"`
 	Split          SplitConfig `yaml:"split"`
 	Filters        Filters     `yaml:"filters"`
@@ -59,10 +61,11 @@ type Colors struct {
 
 // RuntimeOverrides contains CLI-level profile overrides.
 type RuntimeOverrides struct {
-	Parser string
-	Split  string
-	Fields []string
-	Format string
+	Parser       string
+	Split        string
+	Fields       []string
+	HiddenFields []string
+	Format       string
 }
 
 // Builtins returns built-in profiles.
@@ -158,6 +161,7 @@ func Normalize(name string, p Profile) Profile {
 		p.Colors.Message = "reset"
 	}
 
+	p.HiddenFields = normalizeFields(p.HiddenFields)
 	p.Colors.Levels = mergeLevelColors(p.Colors.Levels)
 
 	if p.Colors.Fields == nil {
@@ -178,6 +182,9 @@ func (p Profile) WithRuntimeOverrides(overrides RuntimeOverrides) Profile {
 	}
 	if len(overrides.Fields) > 0 {
 		p.Fields = overrides.Fields
+	}
+	if len(overrides.HiddenFields) > 0 {
+		p.HiddenFields = mergeFields(p.HiddenFields, overrides.HiddenFields)
 	}
 	if overrides.Format != "" {
 		p.Format = overrides.Format
@@ -206,4 +213,30 @@ func mergeLevelColors(configured map[string]string) map[string]string {
 	maps.Copy(levels, normalized)
 
 	return levels
+}
+
+// normalizeFields trims, deduplicates, and preserves field order.
+func normalizeFields(fields []string) []string {
+	seen := map[string]struct{}{}
+	normalized := []string{}
+
+	for _, field := range fields {
+		field = strings.TrimSpace(field)
+		if field == "" {
+			continue
+		}
+		if _, ok := seen[field]; ok {
+			continue
+		}
+
+		seen[field] = struct{}{}
+		normalized = append(normalized, field)
+	}
+
+	return normalized
+}
+
+// mergeFields merges two field lists and preserves first-seen order.
+func mergeFields(base []string, extra []string) []string {
+	return normalizeFields(slices.Concat(base, extra))
 }

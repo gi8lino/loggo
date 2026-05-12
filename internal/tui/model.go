@@ -23,6 +23,7 @@ type InitialState struct {
 	Search        string
 	Include       []string
 	Exclude       []string
+	HiddenFields  []string
 	BufferSize    int
 	Debug         bool
 	LoadedConfigs []string
@@ -49,6 +50,7 @@ const (
 	modeExcludeField
 	modeExcludeOperator
 	modeExcludeValue
+	modeColumns
 	modeProfile
 	modeInspect
 	modeHelp
@@ -79,6 +81,10 @@ type Model struct {
 	search               string
 	include              []string
 	exclude              []string
+	hiddenFields         map[string]struct{}
+	columnFieldOptions   []string
+	columnHiddenDraft    map[string]struct{}
+	columnFieldCursor    int
 	input                string
 	mode                 Mode
 	selected             int
@@ -135,6 +141,7 @@ func NewModel(
 		search:        initial.Search,
 		include:       append([]string{}, initial.Include...),
 		exclude:       append([]string{}, initial.Exclude...),
+		hiddenFields:  fieldSet(initial.HiddenFields),
 		follow:        true,
 		bufferSize:    initial.BufferSize,
 		debug:         initial.Debug,

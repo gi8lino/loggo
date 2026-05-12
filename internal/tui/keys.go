@@ -15,6 +15,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleFilterFieldKey(msg), nil
 	case modeFilterOperator, modeExcludeOperator:
 		return m.handleFilterOperatorKey(msg), nil
+	case modeColumns:
+		return m.handleColumnsKey(msg), nil
 	case modeProfile:
 		return m.handleProfileKey(msg), nil
 	case modeInspect, modeHelp:
@@ -43,6 +45,8 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "c":
 		m.search = ""
 		m.input = ""
+	case "v":
+		m.startColumnPicker()
 	case "p":
 		m.mode = modeProfile
 		m.profileCursor = m.activeProfileIndex()
@@ -65,6 +69,7 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.search = ""
 		m.include = nil
 		m.exclude = nil
+		m.hiddenFields = fieldSet(m.activeProfile.HiddenFields)
 		m.err = nil
 		_ = m.rebuildFilter()
 		m.rebuildVisible()
@@ -179,6 +184,35 @@ func (m Model) handleFilterOperatorKey(msg tea.KeyMsg) Model {
 		} else {
 			m.mode = modeFilterValue
 		}
+	}
+
+	return m
+}
+
+// handleColumnsKey handles keyboard input in the column visibility picker.
+func (m Model) handleColumnsKey(msg tea.KeyMsg) Model {
+	if len(m.columnFieldOptions) == 0 {
+		m.columnFieldOptions = m.buildColumnFields()
+	}
+	if m.columnHiddenDraft == nil {
+		m.columnHiddenDraft = mapsClone(m.hiddenFields)
+	}
+
+	switch msg.String() {
+	case "esc":
+		m.cancelColumnPicker()
+	case "enter":
+		m.applyColumnPicker()
+	case "up":
+		m.columnFieldCursor = max(0, m.columnFieldCursor-1)
+	case "down":
+		m.columnFieldCursor = min(len(m.columnFieldOptions)-1, m.columnFieldCursor+1)
+	case " ":
+		m.toggleColumnDraft()
+	case "a":
+		m.columnHiddenDraft = map[string]struct{}{}
+	case "d":
+		m.columnHiddenDraft = fieldSet(m.activeProfile.HiddenFields)
 	}
 
 	return m

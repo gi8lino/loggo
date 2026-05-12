@@ -120,6 +120,46 @@ func (m *Model) removeLastExclude() {
 	m.rebuildVisible()
 }
 
+// startColumnPicker starts the visible column picker.
+func (m *Model) startColumnPicker() {
+	m.columnFieldOptions = m.buildColumnFields()
+	m.columnHiddenDraft = mapsClone(m.hiddenFields)
+	m.columnFieldCursor = 0
+	m.mode = modeColumns
+}
+
+// cancelColumnPicker discards column visibility changes.
+func (m *Model) cancelColumnPicker() {
+	m.columnFieldOptions = nil
+	m.columnHiddenDraft = nil
+	m.columnFieldCursor = 0
+	m.mode = modeNormal
+}
+
+// applyColumnPicker applies column visibility changes.
+func (m *Model) applyColumnPicker() {
+	m.hiddenFields = mapsClone(m.columnHiddenDraft)
+	m.columnFieldOptions = nil
+	m.columnHiddenDraft = nil
+	m.columnFieldCursor = 0
+	m.mode = modeNormal
+}
+
+// toggleColumnDraft toggles the selected field in the draft hidden-field set.
+func (m *Model) toggleColumnDraft() {
+	if len(m.columnFieldOptions) == 0 {
+		return
+	}
+
+	field := m.columnFieldOptions[m.columnFieldCursor]
+	if _, ok := m.columnHiddenDraft[field]; ok {
+		delete(m.columnHiddenDraft, field)
+		return
+	}
+
+	m.columnHiddenDraft[field] = struct{}{}
+}
+
 // processPending parses and appends pending input lines during a frame.
 func (m *Model) processPending(limit int) {
 	if len(m.pending) == 0 {
@@ -252,7 +292,10 @@ func (m *Model) switchProfile(name string) {
 	m.activeProfile = next
 	m.activeParser = parser
 	m.profileCursor = m.activeProfileIndex()
+	m.hiddenFields = fieldSet(next.HiddenFields)
 	m.filterFieldOptions = nil
+	m.columnFieldOptions = nil
+	m.columnHiddenDraft = nil
 	m.reparseAll()
 
 	if err := m.rebuildFilter(); err != nil {
@@ -416,4 +459,110 @@ func (m Model) buildFilterFields() []string {
 	}
 
 	return fields
+}
+
+// buildColumnFields returns a stable snapshot of displayable column names.
+func (m Model) buildColumnFields() []string {
+	seen := map[string]struct{}{}
+	fields := []string{}
+	discovered := map[string]struct{}{}
+
+	add := func(field string) {
+		field = strings.TrimSpace(field)
+		if field == "" {
+			return
+		}
+		if _, ok := seen[field]; ok {
+			return
+		}
+
+		seen[field] = struct{}{}
+		fields = append(fields, field)
+	}
+
+	add("timestamp")
+	add("level")
+	add("message")
+	add(m.activeProfile.TimestampField)
+	add(m.activeProfile.LevelField)
+	add(m.activeProfile.MessageField)
+
+	for _, field := range m.activeProfile.Fields {
+		add(field)
+	}
+
+	for _, entry := range m.parsed {
+		for field := range entry.Fields {
+			if _, ok := seen[field]; ok {
+				continue
+			}
+
+			discovered[field] = struct{}{}
+		}
+	}
+
+	for _, field := range slices.Sorted(maps.Keys(discovered)) {
+		add(field)
+	}
+
+	return fields
+}
+
+// isHiddenField reports whether a display field is hidden.
+func (m Model) isHiddenField(field string) bool {
+	field = strings.TrimSpace(field)
+	if field == "" {
+		return false
+	}
+
+	if _, ok := m.hiddenFields[field]; ok {
+		return true
+	}
+
+	switch strings.ToLower(field) {
+	case "timestamp", "time", "ts":
+		return hasAnyField(m.hiddenFields, "timestamp", "time", "ts")
+	case "level", "severity":
+		return hasAnyField(m.hiddenFields, "level", "severity")
+	case "message", "msg":
+		return hasAnyField(m.hiddenFields, "message", "msg")
+	default:
+		return false
+	}
+}
+
+// fieldSet creates a set from field names.
+func fieldSet(fields []string) map[string]struct{} {
+	set := map[string]struct{}{}
+
+	for _, field := range fields {
+		field = strings.TrimSpace(field)
+		if field == "" {
+			continue
+		}
+
+		set[field] = struct{}{}
+	}
+
+	return set
+}
+
+// mapsClone returns a non-nil clone of a string set.
+func mapsClone(input map[string]struct{}) map[string]struct{} {
+	if input == nil {
+		return map[string]struct{}{}
+	}
+
+	return maps.Clone(input)
+}
+
+// hasAnyField reports whether any field exists in a set.
+func hasAnyField(set map[string]struct{}, fields ...string) bool {
+	for _, field := range fields {
+		if _, ok := set[field]; ok {
+			return true
+		}
+	}
+
+	return false
 }
