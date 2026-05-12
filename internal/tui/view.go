@@ -41,6 +41,8 @@ func (m Model) View() string {
 		lines = append(lines, m.filterFieldView(width, bodyHeight)...)
 	case modeFilterOperator, modeExcludeOperator:
 		lines = append(lines, m.filterOperatorView(width, bodyHeight)...)
+	case modeColumns:
+		lines = append(lines, m.columnsView(width, bodyHeight)...)
 	default:
 		lines = append(lines, m.logView(width, bodyHeight)...)
 	}
@@ -108,6 +110,10 @@ func (m Model) activeLine() string {
 
 	line += fmt.Sprintf("search: %s   filters: %s   hidden: %s", search, filters, excludes)
 
+	if len(m.hiddenFields) > 0 {
+		line += fmt.Sprintf("   hidden fields: %d", len(m.hiddenFields))
+	}
+
 	if m.err != nil {
 		line += "   " + errorStyle.Render("error: "+m.err.Error())
 	}
@@ -115,7 +121,7 @@ func (m Model) activeLine() string {
 	return dimStyle.Render(line)
 }
 
-// badges renders visible badges for active search, filter, and exclude state.
+// badges renders visible badges for active search, filter, exclude, and column state.
 func (m Model) badges() []string {
 	badges := []string{}
 
@@ -127,6 +133,9 @@ func (m Model) badges() []string {
 	}
 	if len(m.exclude) > 0 {
 		badges = append(badges, badgeStyle.Render("HIDDEN"))
+	}
+	if len(m.hiddenFields) > 0 {
+		badges = append(badges, badgeStyle.Render("COLUMNS"))
 	}
 
 	return badges
@@ -190,6 +199,8 @@ func (m Model) inputLine() string {
 		return "exclude operator> up/down select, enter apply, esc cancel"
 	case modeExcludeValue:
 		return fmt.Sprintf("exclude %s %s> %s", m.filterField, m.filterOperator.Label, m.input)
+	case modeColumns:
+		return "columns> space toggle, enter apply, a show all, d profile default, esc cancel"
 	case modeProfile:
 		return "profile> up/down select, enter apply, esc cancel"
 	case modeInspect:
@@ -203,7 +214,7 @@ func (m Model) inputLine() string {
 
 // helpLine renders the bottom help line.
 func (m Model) helpLine() string {
-	return dimStyle.Render("/ search  c clear  f filter  x exclude  F/X remove  r reset  p profile  ? help  q quit")
+	return dimStyle.Render("/ search  c clear  f filter  x exclude  v columns  F/X remove  r reset  p profile  ? help  q quit")
 }
 
 // renderEntry renders one parsed log entry.
@@ -214,17 +225,17 @@ func (m Model) renderEntry(entry logentry.Entry) string {
 
 	parts := []string{}
 
-	if entry.Timestamp != "" {
+	if entry.Timestamp != "" && !m.isHiddenField("timestamp") {
 		parts = append(parts, colorStyle(m.activeProfile.Colors.Timestamp).Render(entry.Timestamp))
 	}
 
-	if entry.Level != "" {
+	if entry.Level != "" && !m.isHiddenField("level") {
 		color := m.activeProfile.Colors.Levels[strings.ToUpper(entry.Level)]
 		parts = append(parts, colorStyle(color).Render(padRight(strings.ToUpper(entry.Level), 5)))
 	}
 
 	for _, field := range m.activeProfile.Fields {
-		if isCoreField(field) {
+		if isCoreField(field) || m.isHiddenField(field) {
 			continue
 		}
 
@@ -242,7 +253,9 @@ func (m Model) renderEntry(entry logentry.Entry) string {
 		message = entry.Raw
 	}
 
-	parts = append(parts, colorStyle(m.activeProfile.Colors.Message).Render(message))
+	if !m.isHiddenField("message") {
+		parts = append(parts, colorStyle(m.activeProfile.Colors.Message).Render(message))
+	}
 
 	return strings.Join(parts, " ")
 }
@@ -265,10 +278,14 @@ func (m Model) renderFormat(entry logentry.Entry) string {
 	}
 
 	for key, value := range replacements {
+		if m.isHiddenField(key) {
+			value = ""
+		}
+
 		output = strings.ReplaceAll(output, "{"+key+"}", value)
 	}
 
-	return output
+	return strings.TrimSpace(output)
 }
 
 // Update exists here only to ensure the tea.Model interface remains explicit.

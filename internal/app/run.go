@@ -14,6 +14,7 @@ import (
 	"github.com/gi8lino/loggo/internal/flags"
 	"github.com/gi8lino/loggo/internal/ingest"
 	"github.com/gi8lino/loggo/internal/profile"
+	"github.com/gi8lino/loggo/internal/terminal"
 	"github.com/gi8lino/loggo/internal/tui"
 )
 
@@ -58,18 +59,19 @@ func Run(
 	}
 
 	activeProfile = activeProfile.WithRuntimeOverrides(profile.RuntimeOverrides{
-		Parser: parsed.Parser,
-		Split:  parsed.Split,
-		Fields: parsed.Fields,
-		Format: parsed.Format,
+		Parser:       parsed.Parser,
+		Split:        parsed.Split,
+		Fields:       parsed.Fields,
+		Format:       parsed.Format,
+		HiddenFields: parsed.HiddenFields,
 	})
 
-	terminalInput, closeTerminalInput, err := openTerminalInput(stdIn)
+	terminalSession, err := terminal.Open(stdIn, stdErr)
 	if err != nil {
-		fmt.Fprintf(stdErr, "loggo: failed to open terminal input: %v\n", err) // nolint:errcheck
+		fmt.Fprintf(stdErr, "loggo: failed to open terminal: %v\n", err) // nolint:errcheck
 		return err
 	}
-	defer closeTerminalInput()
+	defer terminalSession.Close()
 
 	ingestCtx, cancelIngest := context.WithCancel(ctx)
 	defer cancelIngest()
@@ -83,6 +85,7 @@ func Run(
 		Search:        parsed.Search,
 		Include:       parsed.Filters,
 		Exclude:       parsed.Excludes,
+		HiddenFields:  activeProfile.HiddenFields,
 		BufferSize:    parsed.BufferSize,
 		Debug:         parsed.Debug,
 		LoadedConfigs: loadedConfigs,
@@ -97,36 +100,21 @@ func Run(
 	if parsed.Debug {
 		fmt.Fprintf(stdErr, "loggo: version=%s commit=%s profile=%s\n", version, commit, activeProfile.Name) // nolint:errcheck
 		if len(loadedConfigs) > 0 {
-			fmt.Fprintf(stdOut, "loggo: loaded configs=%v\n", loadedConfigs) // nolint:errcheck
+			fmt.Fprintf(stdErr, "loggo: loaded configs=%v\n", loadedConfigs) // nolint:errcheck
 		}
 		if len(parsed.OverriddenValues) > 0 {
-			fmt.Fprintf(stdOut, "loggo: env overrides=%v\n", parsed.OverriddenValues) // nolint:errcheck
+			fmt.Fprintf(stdErr, "loggo: env overrides=%v\n", parsed.OverriddenValues) // nolint:errcheck
 		}
 	}
 
 	program := tea.NewProgram(
 		model,
 		tea.WithAltScreen(),
-		tea.WithInput(terminalInput),
-		tea.WithOutput(stdErr),
+		tea.WithInput(terminalSession.Input),
+		tea.WithOutput(terminalSession.Output),
 	)
 
 	_, err = program.Run()
 
 	return err
-}
-
-// openTerminalInput opens keyboard input from the controlling terminal.
-func openTerminalInput(stdIn *os.File) (*os.File, func(), error) {
-	info, err := stdIn.Stat()
-	if err == nil && info.Mode()&os.ModeCharDevice != 0 {
-		return stdIn, func() {}, nil
-	}
-
-	tty, err := os.OpenFile("/dev/tty", os.O_RDONLY, 0)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return tty, func() { _ = tty.Close() }, nil
 }

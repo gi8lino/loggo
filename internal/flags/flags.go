@@ -14,6 +14,7 @@ type Options struct {
 	Parser           string         // Parser override.
 	Split            string         // Split delimiter override.
 	Fields           []string       // Fields to render.
+	HiddenFields     []string       // Fields hidden from display.
 	Format           string         // Output format override.
 	Search           string         // Initial search query.
 	Filters          []string       // Initial include filters.
@@ -53,6 +54,10 @@ func ParseFlags(args []string, version string) (Options, error) {
 		Value()
 
 	tf.StringSliceVar(&opts.Fields, "fields", []string{}, "Comma-separated fields to render.").
+		Placeholder("LIST").
+		Value()
+
+	tf.StringSliceVar(&opts.HiddenFields, "hide-field", []string{}, "Comma-separated fields hidden from display.").
 		Placeholder("LIST").
 		Value()
 
