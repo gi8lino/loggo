@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/gi8lino/loggo/internal/filter"
 	"github.com/gi8lino/loggo/internal/ingest"
 	"github.com/gi8lino/loggo/internal/logentry"
@@ -196,7 +196,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, nil
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		return m.handleKey(typed)
 	}
 

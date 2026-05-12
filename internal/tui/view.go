@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/gi8lino/loggo/internal/logentry"
 )
 
 // View renders the complete TUI.
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	width := m.width
 	if width <= 0 {
 		width = 100
@@ -50,7 +50,10 @@ func (m Model) View() string {
 	lines = append(lines, m.fit(width, m.inputLine()))
 	lines = append(lines, m.fit(width, m.helpLine()))
 
-	return strings.Join(lines, "\n")
+	view := tea.NewView(strings.Join(lines, "\n"))
+	view.AltScreen = true
+
+	return view
 }
 
 // statusLine renders the top status bar.

@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/containeroo/tinyflags"
 	"github.com/gi8lino/loggo/internal/config"
 	"github.com/gi8lino/loggo/internal/flags"
@@ -109,7 +109,6 @@ func Run(
 
 	program := tea.NewProgram(
 		model,
-		tea.WithAltScreen(),
 		tea.WithInput(terminalSession.Input),
 		tea.WithOutput(terminalSession.Output),
 	)

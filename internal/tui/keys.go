@@ -3,11 +3,11 @@ package tui
 import (
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // handleKey routes key messages to the active mode handler.
-func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch m.mode {
 	case modeSearch, modeFilterValue, modeExcludeValue:
 		return m.handleInputKey(msg), nil
@@ -27,7 +27,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleNormalKey handles keyboard input in normal mode.
-func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleNormalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
@@ -56,7 +56,7 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if _, ok := m.activeEntry(); ok {
 			m.mode = modeInspect
 		}
-	case " ":
+	case "space":
 		m.paused = !m.paused
 		if m.paused {
 			m.follow = false
@@ -98,7 +98,7 @@ func (m Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleInputKey handles keyboard input while editing a search or filter value.
-func (m Model) handleInputKey(msg tea.KeyMsg) Model {
+func (m Model) handleInputKey(msg tea.KeyPressMsg) Model {
 	switch msg.String() {
 	case "esc":
 		m.mode = modeNormal
@@ -118,8 +118,8 @@ func (m Model) handleInputKey(msg tea.KeyMsg) Model {
 			m.search = ""
 		}
 	default:
-		if msg.Type == tea.KeyRunes {
-			m.input += msg.String()
+		if len(msg.Text) > 0 {
+			m.input += msg.Text
 			if m.mode == modeSearch {
 				m.search = m.input
 			}
@@ -130,7 +130,7 @@ func (m Model) handleInputKey(msg tea.KeyMsg) Model {
 }
 
 // handleFilterFieldKey handles field selection for guided filters.
-func (m Model) handleFilterFieldKey(msg tea.KeyMsg) Model {
+func (m Model) handleFilterFieldKey(msg tea.KeyPressMsg) Model {
 	if len(m.filterFieldOptions) == 0 {
 		m.filterFieldOptions = m.buildFilterFields()
 	}
@@ -161,7 +161,7 @@ func (m Model) handleFilterFieldKey(msg tea.KeyMsg) Model {
 }
 
 // handleFilterOperatorKey handles operator selection for guided filters.
-func (m Model) handleFilterOperatorKey(msg tea.KeyMsg) Model {
+func (m Model) handleFilterOperatorKey(msg tea.KeyPressMsg) Model {
 	switch msg.String() {
 	case "esc":
 		m.cancelGuidedFilter()
@@ -190,7 +190,7 @@ func (m Model) handleFilterOperatorKey(msg tea.KeyMsg) Model {
 }
 
 // handleColumnsKey handles keyboard input in the column visibility picker.
-func (m Model) handleColumnsKey(msg tea.KeyMsg) Model {
+func (m Model) handleColumnsKey(msg tea.KeyPressMsg) Model {
 	if len(m.columnFieldOptions) == 0 {
 		m.columnFieldOptions = m.buildColumnFields()
 	}
@@ -207,7 +207,7 @@ func (m Model) handleColumnsKey(msg tea.KeyMsg) Model {
 		m.columnFieldCursor = max(0, m.columnFieldCursor-1)
 	case "down":
 		m.columnFieldCursor = min(len(m.columnFieldOptions)-1, m.columnFieldCursor+1)
-	case " ":
+	case "space":
 		m.toggleColumnDraft()
 	case "a":
 		m.columnHiddenDraft = map[string]struct{}{}
@@ -219,7 +219,7 @@ func (m Model) handleColumnsKey(msg tea.KeyMsg) Model {
 }
 
 // handleProfileKey handles keyboard input in profile picker mode.
-func (m Model) handleProfileKey(msg tea.KeyMsg) Model {
+func (m Model) handleProfileKey(msg tea.KeyPressMsg) Model {
 	switch msg.String() {
 	case "esc":
 		m.mode = modeNormal
@@ -239,7 +239,7 @@ func (m Model) handleProfileKey(msg tea.KeyMsg) Model {
 }
 
 // handleOverlayKey handles keyboard input in help and inspect modes.
-func (m Model) handleOverlayKey(msg tea.KeyMsg) Model {
+func (m Model) handleOverlayKey(msg tea.KeyPressMsg) Model {
 	switch msg.String() {
 	case "esc", "enter":
 		m.mode = modeNormal
