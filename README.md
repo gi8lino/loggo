@@ -598,3 +598,7 @@ cat nginx.log | go run ./cmd --profile nginx
 - a full query language
 
 It is a local terminal tool for inspecting live or historical log streams.
+
+## License
+
+This project is licensed under the Apache 2.0 License. See the [LICENSE](LICENSE) file for details.
