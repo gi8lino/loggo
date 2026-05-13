@@ -96,6 +96,7 @@ type Model struct {
 	mode                 Mode
 	selected             int
 	vimGotoPending       bool
+	horizontalOffset     int
 	follow               bool
 	paused               bool
 	eof                  bool

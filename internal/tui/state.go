@@ -420,6 +420,16 @@ func (m Model) pageStep() int {
 	return step
 }
 
+// horizontalStep returns a reasonable horizontal scroll step.
+func (m Model) horizontalStep() int {
+	return 8
+}
+
+// scrollHorizontal moves the viewport horizontally and keeps it non-negative.
+func (m *Model) scrollHorizontal(delta int) {
+	m.horizontalOffset = max(0, m.horizontalOffset+delta)
+}
+
 // moveSearch moves to the next or previous visible search match.
 func (m *Model) moveSearch(delta int) {
 	if strings.TrimSpace(m.search) == "" || len(m.visible) == 0 {

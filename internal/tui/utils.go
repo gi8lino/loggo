@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // fit trims a rendered line to the current terminal width.
@@ -60,4 +61,23 @@ func wrapLines(width int, line string) []string {
 	rendered := lipgloss.NewStyle().Width(width).Render(line)
 
 	return strings.Split(rendered, "\n")
+}
+
+// viewportLine crops a rendered line to the horizontal viewport and pads it to width.
+func viewportLine(line string, offset int, width int) string {
+	if width <= 0 {
+		return line
+	}
+
+	if offset < 0 {
+		offset = 0
+	}
+
+	cropped := ansi.Cut(line, offset, offset+width)
+	visibleWidth := ansi.StringWidth(cropped)
+	if visibleWidth >= width {
+		return cropped
+	}
+
+	return cropped + strings.Repeat(" ", width-visibleWidth)
 }

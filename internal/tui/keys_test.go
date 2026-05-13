@@ -154,3 +154,23 @@ func TestHandleKeySupportsVimNavigation(t *testing.T) {
 	updated = next.(Model)
 	assert.Equal(t, 2, updated.selected)
 }
+
+func TestHandleKeySupportsHorizontalScrolling(t *testing.T) {
+	model := Model{}
+
+	next, _ := model.handleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	updated := next.(Model)
+	assert.Equal(t, 8, updated.horizontalOffset)
+
+	next, _ = updated.handleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
+	updated = next.(Model)
+	assert.Equal(t, 0, updated.horizontalOffset)
+
+	next, _ = updated.handleKey(tea.KeyPressMsg{Code: tea.KeyRight})
+	updated = next.(Model)
+	assert.Equal(t, 8, updated.horizontalOffset)
+
+	next, _ = updated.handleKey(tea.KeyPressMsg{Code: tea.KeyLeft})
+	updated = next.(Model)
+	assert.Equal(t, 0, updated.horizontalOffset)
+}

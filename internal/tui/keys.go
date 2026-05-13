@@ -98,6 +98,10 @@ func (m Model) handleNormalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.moveSelection(-1)
 	case "down":
 		m.moveSelection(1)
+	case "left", "h":
+		m.scrollHorizontal(-m.horizontalStep())
+	case "right", "l":
+		m.scrollHorizontal(m.horizontalStep())
 	case "j":
 		m.moveSelection(1)
 	case "k":

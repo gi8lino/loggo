@@ -20,6 +20,8 @@ func (m Model) helpView(width int, height int) []string {
 		"p            switch profile",
 		"space        pause or resume viewport",
 		"a            jump to latest and follow",
+		"h/l          scroll log view left/right",
+		"left/right   scroll log view left/right",
 		"enter        inspect selected entry",
 		"up/down      move selection",
 		"pgup/pgdown  move selection faster",

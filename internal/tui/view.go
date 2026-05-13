@@ -142,6 +142,9 @@ func (m Model) activeLine() string {
 	if m.filterContext > 0 && m.hasInteractiveFilters() {
 		line += fmt.Sprintf("   context: %d", m.filterContext)
 	}
+	if m.horizontalOffset > 0 {
+		line += fmt.Sprintf("   x:%d", m.horizontalOffset)
+	}
 
 	if m.err != nil {
 		line += "   " + errorStyle.Render("error: "+m.err.Error())
@@ -177,7 +180,7 @@ func (m Model) logView(width int, height int) []string {
 
 	if len(m.visible) == 0 {
 		if header := m.headerLine(nil); header != "" && m.showHeaders {
-			lines = append(lines, m.fit(width, headerStyle.Render(header)))
+			lines = append(lines, viewportLine(headerStyle.Render(header), m.horizontalOffset, width))
 		}
 		lines = append(lines, dimStyle.Render(" no visible log lines"))
 
@@ -191,10 +194,10 @@ func (m Model) logView(width int, height int) []string {
 
 	start = max(0, start)
 	end := min(len(m.visible), start+bodyHeight)
-	fields := m.visibleFields(start, end)
+	fields := m.activeFields()
 
 	if header := m.headerLine(fields); header != "" && m.showHeaders {
-		lines = append(lines, m.fit(width, headerStyle.Render(header)))
+		lines = append(lines, viewportLine(headerStyle.Render(header), m.horizontalOffset, width))
 		bodyHeight--
 		if bodyHeight < 1 {
 			return padLines(lines, height)
@@ -205,7 +208,6 @@ func (m Model) logView(width int, height int) []string {
 		}
 		start = max(0, start)
 		end = min(len(m.visible), start+bodyHeight)
-		fields = m.visibleFields(start, end)
 	}
 
 	for visibleIndex := start; visibleIndex < end; visibleIndex++ {
@@ -256,7 +258,7 @@ func (m Model) inputLine() string {
 
 // helpLine renders the bottom help line.
 func (m Model) helpLine() string {
-	return dimStyle.Render("/ search  c clear  f filter  x exclude  [/ ] context  v columns  H headers  F/X remove  r reset  p profile  ? help  q quit")
+	return dimStyle.Render("/ search  c clear  f filter  x exclude  h/l scroll  [/ ] context  v columns  H headers  F/X remove  r reset  p profile  ? help  q quit")
 }
 
 // streamStateBadge renders the current viewport follow state.
@@ -296,7 +298,7 @@ func (m Model) headerLine(fields []string) string {
 }
 
 // renderEntry renders one parsed log entry.
-func (m Model) renderEntry(entry logentry.Entry, fields []string, selected bool) string {
+func (m Model) renderEntry(entry logentry.Entry, fields []string, background string) string {
 	if m.activeProfile.Format != "" {
 		return m.renderFormat(entry)
 	}
@@ -304,23 +306,23 @@ func (m Model) renderEntry(entry logentry.Entry, fields []string, selected bool)
 	parts := []string{}
 
 	if entry.Timestamp != "" && !m.isHiddenField("timestamp") {
-		parts = append(parts, m.renderCell(entry.Timestamp, m.activeProfile.Colors.Timestamp, timestampColumnWidth, selected))
+		parts = append(parts, m.renderCell(entry.Timestamp, m.activeProfile.Colors.Timestamp, timestampColumnWidth, background))
 	}
 
 	if entry.Level != "" && !m.isHiddenField("level") {
 		color := m.activeProfile.Colors.Levels[strings.ToUpper(entry.Level)]
-		parts = append(parts, m.renderCell(strings.ToUpper(entry.Level), color, levelColumnWidth, selected))
+		parts = append(parts, m.renderCell(strings.ToUpper(entry.Level), color, levelColumnWidth, background))
 	}
 
 	for _, field := range fields {
 		value, ok := entry.Get(field)
 		if !ok || value == "" {
-			parts = append(parts, m.renderCell("", "", fieldColumnWidth, selected))
+			parts = append(parts, m.renderCell("", "", fieldColumnWidth, background))
 			continue
 		}
 
 		color := m.activeProfile.Colors.Fields[field]
-		parts = append(parts, m.renderCell(field+"="+value, color, fieldColumnWidth, selected))
+		parts = append(parts, m.renderCell(field+"="+value, color, fieldColumnWidth, background))
 	}
 
 	message := entry.Message
@@ -329,7 +331,7 @@ func (m Model) renderEntry(entry logentry.Entry, fields []string, selected bool)
 	}
 
 	if !m.isHiddenField("message") {
-		parts = append(parts, m.renderCell(message, m.activeProfile.Colors.Message, 0, selected))
+		parts = append(parts, m.renderCell(message, m.activeProfile.Colors.Message, 0, background))
 	}
 
 	return strings.Join(parts, " ")
@@ -337,26 +339,26 @@ func (m Model) renderEntry(entry logentry.Entry, fields []string, selected bool)
 
 // renderLogLine renders one visible log row with selection and search highlighting.
 func (m Model) renderLogLine(width int, prefix string, entry logentry.Entry, fields []string, selected bool, matched bool) string {
-	contentWidth := width - lipgloss.Width(prefix)
-	if contentWidth < 1 {
-		contentWidth = 1
+	background := ""
+	switch {
+	case selected:
+		background = "236"
+	case matched:
+		background = "11"
 	}
 
-	line := m.fit(contentWidth, m.renderEntry(entry, fields, selected))
-	rendered := prefix + line
-
-	if matched && !selected {
-		rendered = matchStyle.Width(width).Render(rendered)
-	}
-	if selected {
-		rendered = selectedStyle.Width(width).Render(rendered)
+	prefixStyle := lipgloss.NewStyle()
+	if background != "" {
+		prefixStyle = prefixStyle.Background(lipgloss.Color(background))
 	}
 
-	return rendered
+	rendered := prefixStyle.Render(prefix) + m.renderEntry(entry, fields, background)
+
+	return viewportLine(rendered, m.horizontalOffset, width)
 }
 
-// visibleFields returns configured non-core fields that are present in the visible viewport slice.
-func (m Model) visibleFields(start int, end int) []string {
+// activeFields returns configured non-core fields that are currently enabled.
+func (m Model) activeFields() []string {
 	fields := []string{}
 
 	for _, field := range m.activeProfile.Fields {
@@ -364,14 +366,7 @@ func (m Model) visibleFields(start int, end int) []string {
 			continue
 		}
 
-		for visibleIndex := start; visibleIndex < end; visibleIndex++ {
-			entry := m.parsed[m.visible[visibleIndex]]
-			value, ok := entry.Get(field)
-			if ok && strings.TrimSpace(value) != "" {
-				fields = append(fields, field)
-				break
-			}
-		}
+		fields = append(fields, field)
 	}
 
 	return fields
@@ -387,13 +382,13 @@ func formatColumn(value string, width int) string {
 }
 
 // renderCell renders one row cell with optional selection background.
-func (m Model) renderCell(value string, color string, width int, selected bool) string {
+func (m Model) renderCell(value string, color string, width int, background string) string {
 	style := colorStyle(color)
 	if width > 0 {
 		style = style.Width(width).MaxWidth(width)
 	}
-	if selected {
-		style = style.Background(lipgloss.Color("236"))
+	if background != "" {
+		style = style.Background(lipgloss.Color(background))
 	}
 
 	return style.Render(value)
