@@ -50,6 +50,17 @@ func TestHandleKeyTogglesHeaders(t *testing.T) {
 	assert.True(t, updated.showHeaders)
 }
 
+func TestStreamStateBadgeReflectsFollowMode(t *testing.T) {
+	model := Model{follow: true}
+	assert.Contains(t, model.streamStateBadge(), "FOLLOWING")
+
+	model.follow = false
+	assert.Contains(t, model.streamStateBadge(), "FROZEN")
+
+	model.eof = true
+	assert.Contains(t, model.streamStateBadge(), "EOF")
+}
+
 func TestStructuredSearchUsesFieldAwareMatcher(t *testing.T) {
 	model := Model{}
 	model.setSearchQuery("level:ERROR")

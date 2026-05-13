@@ -10,6 +10,9 @@ var (
 	matchStyle    = lipgloss.NewStyle().Background(lipgloss.Color("11")).Foreground(lipgloss.Color("0"))
 	badgeStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("0")).Background(lipgloss.Color("11")).Padding(0, 1)
 	headerStyle   = lipgloss.NewStyle().Bold(true).Underline(true).Foreground(lipgloss.Color("7"))
+	liveStyle     = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("0")).Background(lipgloss.Color("10")).Padding(0, 1)
+	frozenStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("0")).Background(lipgloss.Color("11")).Padding(0, 1)
+	eofStyle      = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("0")).Background(lipgloss.Color("8")).Padding(0, 1)
 )
 
 // colorStyle returns a lipgloss style for a named color.

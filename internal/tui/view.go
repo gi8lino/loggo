@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/gi8lino/loggo/internal/logentry"
 )
 
@@ -26,7 +27,7 @@ func (m Model) View() tea.View {
 	}
 
 	lines := []string{
-		m.fit(width, m.statusLine()),
+		m.fit(width, m.statusLine(width)),
 		m.fit(width, m.activeLine()),
 	}
 
@@ -57,7 +58,7 @@ func (m Model) View() tea.View {
 }
 
 // statusLine renders the top status bar.
-func (m Model) statusLine() string {
+func (m Model) statusLine(width int) string {
 	state := "running"
 	if m.paused {
 		state = "paused"
@@ -70,10 +71,9 @@ func (m Model) statusLine() string {
 	}
 
 	line := fmt.Sprintf(
-		" loggo  profile=%s  parser=%s  follow=%t  state=%s  lines=%d  buffered=%d  visible=%d ",
+		" loggo  profile=%s  parser=%s  state=%s  lines=%d  buffered=%d  visible=%d ",
 		m.activeProfile.Name,
 		m.activeParser.Name(),
-		m.follow,
 		state,
 		m.nextIndex,
 		len(m.raw),
@@ -84,7 +84,19 @@ func (m Model) statusLine() string {
 		line += fmt.Sprintf(" pending=%d version=%s commit=%s ", len(m.pending), m.version, m.commit)
 	}
 
-	return statusStyle.Render(line)
+	badge := m.streamStateBadge()
+	if width > 0 {
+		gap := width - lipgloss.Width(line) - lipgloss.Width(badge)
+		if gap < 1 {
+			gap = 1
+		}
+
+		line += strings.Repeat(" ", gap) + badge
+	} else {
+		line += " " + badge
+	}
+
+	return statusStyle.Width(width).Render(line)
 }
 
 // activeLine renders the active search and filter state.
@@ -232,6 +244,18 @@ func (m Model) inputLine() string {
 // helpLine renders the bottom help line.
 func (m Model) helpLine() string {
 	return dimStyle.Render("/ search  c clear  f filter  x exclude  v columns  H headers  F/X remove  r reset  p profile  ? help  q quit")
+}
+
+// streamStateBadge renders the current viewport follow state.
+func (m Model) streamStateBadge() string {
+	switch {
+	case m.eof && len(m.pending) == 0:
+		return eofStyle.Render("EOF")
+	case m.follow && !m.paused:
+		return liveStyle.Render("FOLLOWING")
+	default:
+		return frozenStyle.Render("FROZEN")
+	}
 }
 
 // headerLine renders fixed column headers when using the default log row layout.
