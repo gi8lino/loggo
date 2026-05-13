@@ -2,6 +2,7 @@ package tui
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -107,7 +108,12 @@ func (m Model) handleInputKey(msg tea.KeyPressMsg) Model {
 		m.applyInput()
 	case "backspace", "ctrl+h":
 		if len(m.input) > 0 {
-			m.input = m.input[:len(m.input)-1]
+			_, size := utf8.DecodeLastRuneInString(m.input)
+			if size <= 0 {
+				size = 1
+			}
+
+			m.input = m.input[:len(m.input)-size]
 			if m.mode == modeSearch {
 				m.search = m.input
 			}
