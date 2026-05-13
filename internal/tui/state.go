@@ -281,7 +281,7 @@ func (m *Model) switchProfile(name string) {
 		return
 	}
 
-	next = profile.Normalize(name, next)
+	next = profile.Normalize(name, next).WithRuntimeOverrides(m.overrides)
 
 	parser, err := logparser.New(next)
 	if err != nil {

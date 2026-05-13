@@ -24,6 +24,7 @@ type InitialState struct {
 	Include       []string
 	Exclude       []string
 	HiddenFields  []string
+	Overrides     profile.RuntimeOverrides
 	BufferSize    int
 	Debug         bool
 	LoadedConfigs []string
@@ -81,6 +82,7 @@ type Model struct {
 	search               string
 	include              []string
 	exclude              []string
+	overrides            profile.RuntimeOverrides
 	hiddenFields         map[string]struct{}
 	columnFieldOptions   []string
 	columnHiddenDraft    map[string]struct{}
@@ -141,6 +143,7 @@ func NewModel(
 		search:        initial.Search,
 		include:       append([]string{}, initial.Include...),
 		exclude:       append([]string{}, initial.Exclude...),
+		overrides:     initial.Overrides,
 		hiddenFields:  fieldSet(initial.HiddenFields),
 		follow:        true,
 		bufferSize:    initial.BufferSize,

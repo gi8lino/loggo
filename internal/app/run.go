@@ -58,13 +58,15 @@ func Run(
 		return err
 	}
 
-	activeProfile = activeProfile.WithRuntimeOverrides(profile.RuntimeOverrides{
+	overrides := profile.RuntimeOverrides{
 		Parser:       parsed.Parser,
 		Split:        parsed.Split,
 		Fields:       parsed.Fields,
 		Format:       parsed.Format,
 		HiddenFields: parsed.HiddenFields,
-	})
+	}
+
+	activeProfile = activeProfile.WithRuntimeOverrides(overrides)
 
 	terminalSession, err := terminal.Open(stdIn, stdErr)
 	if err != nil {
@@ -86,6 +88,7 @@ func Run(
 		Include:       parsed.Filters,
 		Exclude:       parsed.Excludes,
 		HiddenFields:  activeProfile.HiddenFields,
+		Overrides:     overrides,
 		BufferSize:    parsed.BufferSize,
 		Debug:         parsed.Debug,
 		LoadedConfigs: loadedConfigs,
