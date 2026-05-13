@@ -61,6 +61,8 @@ func (m Model) handleNormalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.input = ""
 	case "v":
 		m.startColumnPicker()
+	case "H":
+		m.showHeaders = !m.showHeaders
 	case "p":
 		m.mode = modeProfile
 		m.profileCursor = m.activeProfileIndex()

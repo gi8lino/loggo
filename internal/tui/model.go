@@ -87,6 +87,7 @@ type Model struct {
 	overrides            profile.RuntimeOverrides
 	stopStream           func()
 	hiddenFields         map[string]struct{}
+	showHeaders          bool
 	columnFieldOptions   []string
 	columnHiddenDraft    map[string]struct{}
 	columnFieldCursor    int
@@ -150,6 +151,7 @@ func NewModel(
 		overrides:     initial.Overrides,
 		stopStream:    initial.StopStream,
 		hiddenFields:  fieldSet(initial.HiddenFields),
+		showHeaders:   true,
 		follow:        true,
 		bufferSize:    initial.BufferSize,
 		debug:         initial.Debug,

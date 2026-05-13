@@ -116,6 +116,11 @@ func (m Model) activeLine() string {
 	if len(m.hiddenFields) > 0 {
 		line += fmt.Sprintf("   hidden fields: %d", len(m.hiddenFields))
 	}
+	if m.showHeaders {
+		line += "   headers: on"
+	} else {
+		line += "   headers: off"
+	}
 
 	if m.err != nil {
 		line += "   " + errorStyle.Render("error: "+m.err.Error())
@@ -147,6 +152,15 @@ func (m Model) badges() []string {
 // logView renders the scrolling log viewport.
 func (m Model) logView(width int, height int) []string {
 	lines := make([]string, 0, height)
+	bodyHeight := height
+
+	if header := m.headerLine(); header != "" && m.showHeaders {
+		lines = append(lines, m.fit(width, headerStyle.Render(header)))
+		bodyHeight--
+		if bodyHeight < 1 {
+			return padLines(lines, height)
+		}
+	}
 
 	if len(m.visible) == 0 {
 		lines = append(lines, dimStyle.Render(" no visible log lines"))
@@ -154,13 +168,13 @@ func (m Model) logView(width int, height int) []string {
 		return padLines(lines, height)
 	}
 
-	start := m.selected - height/2
+	start := m.selected - bodyHeight/2
 	if m.follow {
-		start = len(m.visible) - height
+		start = len(m.visible) - bodyHeight
 	}
 
 	start = max(0, start)
-	end := min(len(m.visible), start+height)
+	end := min(len(m.visible), start+bodyHeight)
 
 	for visibleIndex := start; visibleIndex < end; visibleIndex++ {
 		entry := m.parsed[m.visible[visibleIndex]]
@@ -217,7 +231,35 @@ func (m Model) inputLine() string {
 
 // helpLine renders the bottom help line.
 func (m Model) helpLine() string {
-	return dimStyle.Render("/ search  c clear  f filter  x exclude  v columns  F/X remove  r reset  p profile  ? help  q quit")
+	return dimStyle.Render("/ search  c clear  f filter  x exclude  v columns  H headers  F/X remove  r reset  p profile  ? help  q quit")
+}
+
+// headerLine renders fixed column headers when using the default log row layout.
+func (m Model) headerLine() string {
+	if m.activeProfile.Format != "" {
+		return ""
+	}
+
+	parts := []string{}
+
+	if !m.isHiddenField("timestamp") {
+		parts = append(parts, padRight("TIMESTAMP", 9))
+	}
+	if !m.isHiddenField("level") {
+		parts = append(parts, padRight("LEVEL", 5))
+	}
+	for _, field := range m.activeProfile.Fields {
+		if isCoreField(field) || m.isHiddenField(field) {
+			continue
+		}
+
+		parts = append(parts, strings.ToUpper(field))
+	}
+	if !m.isHiddenField("message") {
+		parts = append(parts, "MESSAGE")
+	}
+
+	return strings.Join(parts, " ")
 }
 
 // renderEntry renders one parsed log entry.

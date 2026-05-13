@@ -38,6 +38,18 @@ func TestHandleKeyStopsStreamOnCtrlCInSearchMode(t *testing.T) {
 	require.NotNil(t, cmd)
 }
 
+func TestHandleKeyTogglesHeaders(t *testing.T) {
+	model := Model{showHeaders: true}
+
+	next, _ := model.handleKey(tea.KeyPressMsg{Code: 'H', Text: "H"})
+	updated := next.(Model)
+	assert.False(t, updated.showHeaders)
+
+	next, _ = updated.handleKey(tea.KeyPressMsg{Code: 'H', Text: "H"})
+	updated = next.(Model)
+	assert.True(t, updated.showHeaders)
+}
+
 func TestStructuredSearchUsesFieldAwareMatcher(t *testing.T) {
 	model := Model{}
 	model.setSearchQuery("level:ERROR")

@@ -9,6 +9,7 @@ var (
 	selectedStyle = lipgloss.NewStyle().Background(lipgloss.Color("236"))
 	matchStyle    = lipgloss.NewStyle().Background(lipgloss.Color("11")).Foreground(lipgloss.Color("0"))
 	badgeStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("0")).Background(lipgloss.Color("11")).Padding(0, 1)
+	headerStyle   = lipgloss.NewStyle().Bold(true).Underline(true).Foreground(lipgloss.Color("7"))
 )
 
 // colorStyle returns a lipgloss style for a named color.
