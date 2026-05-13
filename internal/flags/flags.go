@@ -9,7 +9,7 @@ import (
 
 // Options holds the application configuration.
 type Options struct {
-	ConfigPath       string         // Path to YAML config file.
+	ConfigPaths      []string       // Paths to YAML config files, merged in order.
 	Profile          string         // Profile name to load.
 	Parser           string         // Parser override.
 	Split            string         // Split delimiter override.
@@ -34,7 +34,7 @@ func ParseFlags(args []string, version string) (Options, error) {
 	tf.Version(version)
 	tf.EnvPrefix("LOGGO_")
 
-	tf.StringVar(&opts.ConfigPath, "config", "", "Path to YAML config file.").
+	tf.StringSliceVar(&opts.ConfigPaths, "config", []string{}, "Path to YAML config file. Can be repeated; last file wins.").
 		Short("c").
 		Placeholder("PATH").
 		Value()

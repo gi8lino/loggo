@@ -46,7 +46,7 @@ func Run(
 		return err
 	}
 
-	cfg, loadedConfigs, err := config.Load(parsed.ConfigPath, config.EnvLookup(getEnv))
+	cfg, loadedConfigs, err := config.Load(parsed.ConfigPaths, config.EnvLookup(getEnv))
 	if err != nil {
 		fmt.Fprintf(stdErr, "loggo: failed to load config: %v\n", err) // nolint:errcheck
 		return err

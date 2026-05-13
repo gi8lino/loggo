@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gi8lino/loggo/internal/profile"
 	"gopkg.in/yaml.v3"
@@ -25,8 +26,8 @@ type Config struct {
 	Profiles       map[string]profile.Profile `yaml:"profiles"`
 }
 
-// Load loads global, local, or explicit loggo configuration.
-func Load(explicitPath string, getEnv EnvLookup) (Config, []string, error) {
+// Load loads global, local, and explicit loggo configuration overlays.
+func Load(explicitPaths []string, getEnv EnvLookup) (Config, []string, error) {
 	cfg := Config{
 		DefaultProfile: "auto",
 		Profiles:       profile.Builtins(),
@@ -42,16 +43,26 @@ func Load(explicitPath string, getEnv EnvLookup) (Config, []string, error) {
 		loaded = append(loaded, globalPath)
 	}
 
-	if explicitPath == "" {
-		explicitPath = getEnv(envConfigPath)
+	if len(explicitPaths) == 0 {
+		envPath := strings.TrimSpace(getEnv(envConfigPath))
+		if envPath != "" {
+			explicitPaths = []string{envPath}
+		}
 	}
 
-	if explicitPath != "" {
-		if err := mergeFile(&cfg, explicitPath); err != nil {
-			return Config{}, nil, err
-		}
+	if len(explicitPaths) > 0 {
+		for _, explicitPath := range explicitPaths {
+			explicitPath = strings.TrimSpace(explicitPath)
+			if explicitPath == "" {
+				continue
+			}
 
-		loaded = append(loaded, explicitPath)
+			if err := mergeFile(&cfg, explicitPath); err != nil {
+				return Config{}, nil, err
+			}
+
+			loaded = append(loaded, explicitPath)
+		}
 
 		return cfg, loaded, cfg.Validate()
 	}
