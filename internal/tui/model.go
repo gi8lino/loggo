@@ -93,6 +93,7 @@ type Model struct {
 	input                string
 	mode                 Mode
 	selected             int
+	vimGotoPending       bool
 	follow               bool
 	paused               bool
 	eof                  bool

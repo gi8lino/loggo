@@ -33,6 +33,15 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 // handleNormalKey handles keyboard input in normal mode.
 func (m Model) handleNormalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.vimGotoPending {
+		m.vimGotoPending = false
+		if msg.String() == "g" {
+			m.follow = false
+			m.selected = 0
+			return m, nil
+		}
+	}
+
 	switch msg.String() {
 	case "q":
 		return m.requestQuit()
@@ -82,14 +91,28 @@ func (m Model) handleNormalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.moveSelection(-1)
 	case "down":
 		m.moveSelection(1)
+	case "j":
+		m.moveSelection(1)
+	case "k":
+		m.moveSelection(-1)
 	case "pgup":
 		m.moveSelection(-10)
 	case "pgdown":
 		m.moveSelection(10)
+	case "ctrl+u":
+		m.moveSelection(-m.pageStep())
+	case "ctrl+d":
+		m.moveSelection(m.pageStep())
 	case "home":
 		m.follow = false
 		m.selected = 0
 	case "end":
+		m.follow = true
+		m.paused = false
+		m.selected = max(0, len(m.visible)-1)
+	case "g":
+		m.vimGotoPending = true
+	case "G":
 		m.follow = true
 		m.paused = false
 		m.selected = max(0, len(m.visible)-1)
@@ -145,6 +168,14 @@ func (m Model) handleFilterFieldKey(msg tea.KeyPressMsg) Model {
 		m.filterFieldOptions = m.buildFilterFields()
 	}
 
+	if m.vimGotoPending {
+		m.vimGotoPending = false
+		if msg.String() == "g" {
+			m.filterFieldCursor = 0
+			return m
+		}
+	}
+
 	switch msg.String() {
 	case "esc":
 		m.cancelGuidedFilter()
@@ -152,6 +183,14 @@ func (m Model) handleFilterFieldKey(msg tea.KeyPressMsg) Model {
 		m.filterFieldCursor = max(0, m.filterFieldCursor-1)
 	case "down":
 		m.filterFieldCursor = min(len(m.filterFieldOptions)-1, m.filterFieldCursor+1)
+	case "j":
+		m.filterFieldCursor = min(len(m.filterFieldOptions)-1, m.filterFieldCursor+1)
+	case "k":
+		m.filterFieldCursor = max(0, m.filterFieldCursor-1)
+	case "g":
+		m.vimGotoPending = true
+	case "G":
+		m.filterFieldCursor = max(0, len(m.filterFieldOptions)-1)
 	case "enter":
 		if len(m.filterFieldOptions) == 0 {
 			return m
@@ -172,6 +211,14 @@ func (m Model) handleFilterFieldKey(msg tea.KeyPressMsg) Model {
 
 // handleFilterOperatorKey handles operator selection for guided filters.
 func (m Model) handleFilterOperatorKey(msg tea.KeyPressMsg) Model {
+	if m.vimGotoPending {
+		m.vimGotoPending = false
+		if msg.String() == "g" {
+			m.filterOperatorCursor = 0
+			return m
+		}
+	}
+
 	switch msg.String() {
 	case "esc":
 		m.cancelGuidedFilter()
@@ -179,6 +226,14 @@ func (m Model) handleFilterOperatorKey(msg tea.KeyPressMsg) Model {
 		m.filterOperatorCursor = max(0, m.filterOperatorCursor-1)
 	case "down":
 		m.filterOperatorCursor = min(len(guidedOperators)-1, m.filterOperatorCursor+1)
+	case "j":
+		m.filterOperatorCursor = min(len(guidedOperators)-1, m.filterOperatorCursor+1)
+	case "k":
+		m.filterOperatorCursor = max(0, m.filterOperatorCursor-1)
+	case "g":
+		m.vimGotoPending = true
+	case "G":
+		m.filterOperatorCursor = max(0, len(guidedOperators)-1)
 	case "enter":
 		m.filterOperator = guidedOperators[m.filterOperatorCursor]
 
@@ -208,6 +263,14 @@ func (m Model) handleColumnsKey(msg tea.KeyPressMsg) Model {
 		m.columnHiddenDraft = mapsClone(m.hiddenFields)
 	}
 
+	if m.vimGotoPending {
+		m.vimGotoPending = false
+		if msg.String() == "g" {
+			m.columnFieldCursor = 0
+			return m
+		}
+	}
+
 	switch msg.String() {
 	case "esc":
 		m.cancelColumnPicker()
@@ -217,6 +280,14 @@ func (m Model) handleColumnsKey(msg tea.KeyPressMsg) Model {
 		m.columnFieldCursor = max(0, m.columnFieldCursor-1)
 	case "down":
 		m.columnFieldCursor = min(len(m.columnFieldOptions)-1, m.columnFieldCursor+1)
+	case "j":
+		m.columnFieldCursor = min(len(m.columnFieldOptions)-1, m.columnFieldCursor+1)
+	case "k":
+		m.columnFieldCursor = max(0, m.columnFieldCursor-1)
+	case "g":
+		m.vimGotoPending = true
+	case "G":
+		m.columnFieldCursor = max(0, len(m.columnFieldOptions)-1)
 	case "space":
 		m.toggleColumnDraft()
 	case "a":
@@ -230,6 +301,14 @@ func (m Model) handleColumnsKey(msg tea.KeyPressMsg) Model {
 
 // handleProfileKey handles keyboard input in profile picker mode.
 func (m Model) handleProfileKey(msg tea.KeyPressMsg) Model {
+	if m.vimGotoPending {
+		m.vimGotoPending = false
+		if msg.String() == "g" {
+			m.profileCursor = 0
+			return m
+		}
+	}
+
 	switch msg.String() {
 	case "esc":
 		m.mode = modeNormal
@@ -237,6 +316,14 @@ func (m Model) handleProfileKey(msg tea.KeyPressMsg) Model {
 		m.profileCursor = max(0, m.profileCursor-1)
 	case "down":
 		m.profileCursor = min(len(m.profileNames)-1, m.profileCursor+1)
+	case "j":
+		m.profileCursor = min(len(m.profileNames)-1, m.profileCursor+1)
+	case "k":
+		m.profileCursor = max(0, m.profileCursor-1)
+	case "g":
+		m.vimGotoPending = true
+	case "G":
+		m.profileCursor = max(0, len(m.profileNames)-1)
 	case "enter":
 		if m.profileCursor >= 0 && m.profileCursor < len(m.profileNames) {
 			m.switchProfile(m.profileNames[m.profileCursor])
@@ -252,6 +339,8 @@ func (m Model) handleProfileKey(msg tea.KeyPressMsg) Model {
 func (m Model) handleOverlayKey(msg tea.KeyPressMsg) Model {
 	switch msg.String() {
 	case "esc", "enter":
+		m.mode = modeNormal
+	case "q":
 		m.mode = modeNormal
 	}
 

@@ -344,6 +344,16 @@ func (m *Model) moveSelection(delta int) {
 	m.selected = min(max(0, m.selected+delta), len(m.visible)-1)
 }
 
+// pageStep returns a reasonable page movement amount for keyboard paging.
+func (m Model) pageStep() int {
+	step := m.height / 2
+	if step < 1 {
+		step = 10
+	}
+
+	return step
+}
+
 // moveSearch moves to the next or previous visible search match.
 func (m *Model) moveSearch(delta int) {
 	if strings.TrimSpace(m.search) == "" || len(m.visible) == 0 {

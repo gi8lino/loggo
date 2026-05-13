@@ -52,3 +52,31 @@ func TestStructuredSearchUsesFieldAwareMatcher(t *testing.T) {
 
 	assert.True(t, model.matchesSearch(entry))
 }
+
+func TestHandleKeySupportsVimNavigation(t *testing.T) {
+	model := Model{
+		visible:  []int{0, 1, 2},
+		selected: 1,
+	}
+
+	next, _ := model.handleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	updated := next.(Model)
+	assert.Equal(t, 2, updated.selected)
+
+	next, _ = updated.handleKey(tea.KeyPressMsg{Code: 'k', Text: "k"})
+	updated = next.(Model)
+	assert.Equal(t, 1, updated.selected)
+
+	next, _ = updated.handleKey(tea.KeyPressMsg{Code: 'g', Text: "g"})
+	updated = next.(Model)
+	assert.True(t, updated.vimGotoPending)
+
+	next, _ = updated.handleKey(tea.KeyPressMsg{Code: 'g', Text: "g"})
+	updated = next.(Model)
+	assert.Equal(t, 0, updated.selected)
+	assert.False(t, updated.vimGotoPending)
+
+	next, _ = updated.handleKey(tea.KeyPressMsg{Code: 'G', Text: "G"})
+	updated = next.(Model)
+	assert.Equal(t, 2, updated.selected)
+}
