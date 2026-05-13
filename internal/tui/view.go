@@ -360,7 +360,7 @@ func (m Model) renderLogLine(width int, prefix string, entry logentry.Entry, fie
 // displayFields returns the configured fields that should currently be rendered.
 func (m Model) displayFields() []string {
 	fields := m.configuredFields()
-	if m.activeProfile.FixedFields {
+	if m.activeProfile.FixedFields || (!m.activeProfile.Builtin && len(fields) > 0) {
 		return fields
 	}
 

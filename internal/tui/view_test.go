@@ -11,7 +11,8 @@ import (
 func TestDisplayFieldsDropsColumnsMissingFromVisibleData(t *testing.T) {
 	model := Model{
 		activeProfile: profile.Profile{
-			Fields: []string{"service", "trace_id", "status"},
+			Builtin: true,
+			Fields:  []string{"service", "trace_id", "status"},
 		},
 		parsed: []logentry.Entry{
 			{Fields: map[string]string{"service": "billing"}},
@@ -26,7 +27,8 @@ func TestDisplayFieldsDropsColumnsMissingFromVisibleData(t *testing.T) {
 func TestDisplayFieldsKeepsConfiguredOrderAcrossVisibleDataset(t *testing.T) {
 	model := Model{
 		activeProfile: profile.Profile{
-			Fields: []string{"service", "trace_id", "status"},
+			Builtin: true,
+			Fields:  []string{"service", "trace_id", "status"},
 		},
 		parsed: []logentry.Entry{
 			{Fields: map[string]string{"service": "billing"}},
@@ -39,9 +41,24 @@ func TestDisplayFieldsKeepsConfiguredOrderAcrossVisibleDataset(t *testing.T) {
 	assert.Equal(t, []string{"service", "trace_id", "status"}, model.displayFields())
 }
 
+func TestDisplayFieldsKeepsCustomProfileColumnsByDefault(t *testing.T) {
+	model := Model{
+		activeProfile: profile.Profile{
+			Fields: []string{"service", "trace_id", "status"},
+		},
+		parsed: []logentry.Entry{
+			{Fields: map[string]string{"service": "billing"}},
+		},
+		visible: []int{0},
+	}
+
+	assert.Equal(t, []string{"service", "trace_id", "status"}, model.displayFields())
+}
+
 func TestDisplayFieldsRespectsFixedProfileColumns(t *testing.T) {
 	model := Model{
 		activeProfile: profile.Profile{
+			Builtin:     true,
 			Fields:      []string{"service", "trace_id", "status"},
 			FixedFields: true,
 		},
