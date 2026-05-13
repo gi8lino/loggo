@@ -515,17 +515,17 @@ func (m Model) isHiddenField(field string) bool {
 		return false
 	}
 
-	if _, ok := m.hiddenFields[field]; ok {
+	if hasField(m.hiddenFields, field) {
 		return true
 	}
 
 	switch strings.ToLower(field) {
-	case "timestamp", "time", "ts":
-		return hasAnyField(m.hiddenFields, "timestamp", "time", "ts")
-	case "level", "severity":
-		return hasAnyField(m.hiddenFields, "level", "severity")
-	case "message", "msg":
-		return hasAnyField(m.hiddenFields, "message", "msg")
+	case "timestamp", "time", "ts", "@timestamp", strings.ToLower(m.activeProfile.TimestampField):
+		return hasAnyField(m.hiddenFields, "timestamp", "time", "ts", "@timestamp", m.activeProfile.TimestampField)
+	case "level", "severity", "lvl", strings.ToLower(m.activeProfile.LevelField):
+		return hasAnyField(m.hiddenFields, "level", "severity", "lvl", m.activeProfile.LevelField)
+	case "message", "msg", "log", strings.ToLower(m.activeProfile.MessageField):
+		return hasAnyField(m.hiddenFields, "message", "msg", "log", m.activeProfile.MessageField)
 	default:
 		return false
 	}
@@ -559,7 +559,28 @@ func mapsClone(input map[string]struct{}) map[string]struct{} {
 // hasAnyField reports whether any field exists in a set.
 func hasAnyField(set map[string]struct{}, fields ...string) bool {
 	for _, field := range fields {
-		if _, ok := set[field]; ok {
+		if hasField(set, field) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// hasField reports whether a field exists in a set using case-insensitive matching.
+func hasField(set map[string]struct{}, field string) bool {
+	field = strings.TrimSpace(field)
+	if field == "" {
+		return false
+	}
+
+	if _, ok := set[field]; ok {
+		return true
+	}
+
+	lowerField := strings.ToLower(field)
+	for candidate := range set {
+		if strings.ToLower(candidate) == lowerField {
 			return true
 		}
 	}
