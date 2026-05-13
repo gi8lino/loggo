@@ -2,10 +2,13 @@ package tui
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/gi8lino/loggo/internal/logentry"
 )
 
@@ -322,7 +325,7 @@ func (m Model) renderEntry(entry logentry.Entry, fields []string, background str
 		}
 
 		color := m.activeProfile.Colors.Fields[field]
-		parts = append(parts, m.renderCell(field+"="+value, color, fieldColumnWidth, background))
+		parts = append(parts, m.renderCell(value, color, fieldColumnWidth, background))
 	}
 
 	message := entry.Message
@@ -359,12 +362,12 @@ func (m Model) renderLogLine(width int, prefix string, entry logentry.Entry, fie
 
 // displayFields returns the configured fields that should currently be rendered.
 func (m Model) displayFields() []string {
-	fields := m.configuredFields()
-	if m.activeProfile.FixedFields || (!m.activeProfile.Builtin && len(fields) > 0) {
-		return fields
+	configured := m.configuredFields()
+	if m.activeProfile.FixedFields {
+		return configured
 	}
 
-	return m.presentFields(fields)
+	return m.adaptiveFields(configured)
 }
 
 // configuredFields returns configured non-core fields that are currently enabled.
@@ -382,26 +385,54 @@ func (m Model) configuredFields() []string {
 	return fields
 }
 
-// presentFields keeps field order stable while dropping columns that are empty
-// across the currently visible dataset.
-func (m Model) presentFields(fields []string) []string {
-	if len(fields) == 0 || len(m.visible) == 0 {
-		return fields
+// adaptiveFields keeps configured field order stable, then appends any other
+// discovered visible fields so adaptive profiles can surface real log data.
+func (m Model) adaptiveFields(configured []string) []string {
+	if len(m.visible) == 0 {
+		return configured
 	}
 
-	present := make([]string, 0, len(fields))
+	seen := map[string]struct{}{}
+	present := []string{}
+	discovered := map[string]struct{}{}
 
-	for _, field := range fields {
-		for _, index := range m.visible {
-			value, ok := m.parsed[index].Get(field)
-			if ok && value != "" {
-				present = append(present, field)
-				break
+	add := func(field string) {
+		if _, ok := seen[field]; ok {
+			return
+		}
+
+		seen[field] = struct{}{}
+		present = append(present, field)
+	}
+
+	visibleFields := map[string]struct{}{}
+	for _, index := range m.visible {
+		for field, value := range m.parsed[index].Fields {
+			if strings.TrimSpace(value) == "" || isCoreField(field) || m.isHiddenField(field) {
+				continue
 			}
+
+			visibleFields[field] = struct{}{}
+			discovered[field] = struct{}{}
 		}
 	}
 
+	for _, field := range configured {
+		if _, ok := visibleFields[field]; ok {
+			add(field)
+			delete(discovered, field)
+		}
+	}
+
+	for _, field := range sortedKeys(discovered) {
+		add(field)
+	}
+
 	return present
+}
+
+func sortedKeys(values map[string]struct{}) []string {
+	return slices.Sorted(maps.Keys(values))
 }
 
 // formatColumn pads one non-message column to a stable width.
@@ -417,7 +448,8 @@ func formatColumn(value string, width int) string {
 func (m Model) renderCell(value string, color string, width int, background string) string {
 	style := colorStyle(color)
 	if width > 0 {
-		style = style.Width(width).MaxWidth(width)
+		value = ansi.Truncate(value, width, "")
+		style = style.Width(width).MaxWidth(width).MaxHeight(1)
 	}
 	if background != "" {
 		style = style.Background(lipgloss.Color(background))

@@ -19,7 +19,6 @@ const (
 // Profile describes how a log stream should be parsed, filtered, and rendered.
 type Profile struct {
 	Name           string      `yaml:"-"`
-	Builtin        bool        `yaml:"-"`
 	Parser         string      `yaml:"parser"`
 	Regex          string      `yaml:"regex"`
 	TimestampField string      `yaml:"timestampField"`
@@ -74,8 +73,7 @@ type RuntimeOverrides struct {
 func Builtins() map[string]Profile {
 	return map[string]Profile{
 		"auto": Normalize("auto", Profile{
-			Builtin: true,
-			Parser:  ParserAuto,
+			Parser: ParserAuto,
 			Fields: []string{
 				"service",
 				"component",
@@ -88,8 +86,7 @@ func Builtins() map[string]Profile {
 			},
 		}),
 		"json": Normalize("json", Profile{
-			Builtin: true,
-			Parser:  ParserJSON,
+			Parser: ParserJSON,
 			Fields: []string{
 				"service",
 				"request_id",
@@ -101,8 +98,7 @@ func Builtins() map[string]Profile {
 			},
 		}),
 		"logfmt": Normalize("logfmt", Profile{
-			Builtin: true,
-			Parser:  ParserLogfmt,
+			Parser: ParserLogfmt,
 			Fields: []string{
 				"service",
 				"component",
@@ -113,7 +109,6 @@ func Builtins() map[string]Profile {
 			},
 		}),
 		"nginx": Normalize("nginx", Profile{
-			Builtin:        true,
 			Parser:         ParserRegex,
 			Regex:          `^(?P<remote_addr>\S+) (?P<remote_ident>\S+) (?P<remote_user>\S+) \[(?P<time>[^\]]+)\] "(?P<method>\S+) (?P<path>\S+)(?: (?P<protocol>[^"]+))?" (?P<status>\d+) (?P<bytes>\d+) "(?P<referer>[^"]*)" "(?P<user_agent>[^"]*)"(?: "(?P<forwarded_for>[^"]*)")?`,
 			TimestampField: "time",
@@ -136,8 +131,7 @@ func Builtins() map[string]Profile {
 			},
 		}),
 		"raw": Normalize("raw", Profile{
-			Builtin: true,
-			Parser:  ParserRaw,
+			Parser: ParserRaw,
 		}),
 	}
 }
