@@ -5,6 +5,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/gi8lino/loggo/internal/logentry"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHandleKeyStopsStreamBeforeQuit(t *testing.T) {
@@ -17,12 +19,8 @@ func TestHandleKeyStopsStreamBeforeQuit(t *testing.T) {
 
 	_, cmd := model.handleKey(tea.KeyPressMsg{Code: 'q', Text: "q"})
 
-	if !stopped {
-		t.Fatalf("expected quit to stop the ingest stream")
-	}
-	if cmd == nil {
-		t.Fatalf("expected quit command to be returned")
-	}
+	assert.True(t, stopped)
+	require.NotNil(t, cmd)
 }
 
 func TestHandleKeyStopsStreamOnCtrlCInSearchMode(t *testing.T) {
@@ -36,12 +34,8 @@ func TestHandleKeyStopsStreamOnCtrlCInSearchMode(t *testing.T) {
 
 	_, cmd := model.handleKey(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 
-	if !stopped {
-		t.Fatalf("expected ctrl+c to stop the ingest stream")
-	}
-	if cmd == nil {
-		t.Fatalf("expected quit command to be returned")
-	}
+	assert.True(t, stopped)
+	require.NotNil(t, cmd)
 }
 
 func TestStructuredSearchUsesFieldAwareMatcher(t *testing.T) {
@@ -51,14 +45,10 @@ func TestStructuredSearchUsesFieldAwareMatcher(t *testing.T) {
 	entry := logentry.New("raw")
 	entry.Level = "ERROR"
 
-	if !model.matchesSearch(entry) {
-		t.Fatalf("expected field-aware search to match level alias")
-	}
+	assert.True(t, model.matchesSearch(entry))
 
 	model.setSearchQuery("service = billing-api and level = ERROR")
 	entry.Fields["service"] = "billing-api"
 
-	if !model.matchesSearch(entry) {
-		t.Fatalf("expected structured search to use filter parser")
-	}
+	assert.True(t, model.matchesSearch(entry))
 }

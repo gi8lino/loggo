@@ -5,6 +5,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStartJoinsJavaStacktracesIntoOneEvent(t *testing.T) {
@@ -29,15 +32,8 @@ func TestStartJoinsJavaStacktracesIntoOneEvent(t *testing.T) {
 		events = append(events, batch.Lines...)
 	}
 
-	if len(events) != 2 {
-		t.Fatalf("expected 2 logical events, got %d", len(events))
-	}
-
-	if !strings.Contains(events[0], "NullPointerException") || !strings.Contains(events[0], "Caused by:") {
-		t.Fatalf("expected first event to include stacktrace lines, got %q", events[0])
-	}
-
-	if events[1] != `2026-05-13 10:15:31 INFO OrderService recovered` {
-		t.Fatalf("unexpected second event: %q", events[1])
-	}
+	require.Len(t, events, 2)
+	assert.Contains(t, events[0], "NullPointerException")
+	assert.Contains(t, events[0], "Caused by:")
+	assert.Equal(t, `2026-05-13 10:15:31 INFO OrderService recovered`, events[1])
 }
