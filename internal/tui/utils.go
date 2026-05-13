@@ -50,3 +50,14 @@ func padRight(value string, width int) string {
 
 	return value + strings.Repeat(" ", width-len(value))
 }
+
+// wrapLines wraps one string to the given width and returns its rendered lines.
+func wrapLines(width int, line string) []string {
+	if width <= 0 {
+		return []string{line}
+	}
+
+	rendered := lipgloss.NewStyle().Width(width).Render(line)
+
+	return strings.Split(rendered, "\n")
+}

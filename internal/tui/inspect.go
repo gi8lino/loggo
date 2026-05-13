@@ -32,7 +32,8 @@ func (m Model) inspectView(width int, height int) []string {
 		lines = append(lines, fmt.Sprintf("%-12s %s", key, entry.Fields[key]))
 	}
 
-	lines = append(lines, "", "raw", "---", entry.Raw)
+	lines = append(lines, "", "raw", "---")
+	lines = append(lines, wrapLines(width, entry.Raw)...)
 
 	for index, line := range lines {
 		lines[index] = m.fit(width, line)
