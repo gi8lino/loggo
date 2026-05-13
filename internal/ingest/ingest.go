@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"context"
 	"io"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -13,6 +15,8 @@ type Options struct {
 	FlushInterval time.Duration
 	ScannerBuffer int
 	ScannerMax    int
+	JoinMultiline bool
+	MaxEventLines int
 }
 
 // Batch contains a group of streamed input lines or a terminal stream event.
@@ -51,11 +55,53 @@ func scanLines(ctx context.Context, r io.Reader, opts Options, lines chan<- stri
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 0, scannerBuffer), scannerMax)
 
+	current := []string{}
+	stacktraceMode := false
+	maxEventLines := opts.MaxEventLines
+	if maxEventLines <= 0 {
+		maxEventLines = 256
+	}
+
 	for scanner.Scan() {
+		line := scanner.Text()
+
+		if !opts.JoinMultiline {
+			select {
+			case <-ctx.Done():
+				return
+			case lines <- line:
+			}
+
+			continue
+		}
+
+		if len(current) == 0 {
+			current = append(current, line)
+			stacktraceMode = false
+			continue
+		}
+
+		if shouldContinueEvent(line, stacktraceMode) && len(current) < maxEventLines {
+			current = append(current, line)
+			stacktraceMode = stacktraceMode || isJavaStacktraceLine(line)
+			continue
+		}
+
 		select {
 		case <-ctx.Done():
 			return
-		case lines <- scanner.Text():
+		case lines <- strings.Join(current, "\n"):
+		}
+
+		current = []string{line}
+		stacktraceMode = false
+	}
+
+	if len(current) > 0 {
+		select {
+		case <-ctx.Done():
+			return
+		case lines <- strings.Join(current, "\n"):
 		}
 	}
 
@@ -64,6 +110,44 @@ func scanLines(ctx context.Context, r io.Reader, opts Options, lines chan<- stri
 		case <-ctx.Done():
 		case errs <- err:
 		}
+	}
+}
+
+var javaExceptionPattern = regexp.MustCompile(`^(?:[A-Za-z_$][A-Za-z0-9_$]*\.)*[A-Za-z_$][A-Za-z0-9_$]*(?:Exception|Error|Throwable|Failure)(?::|$)`)
+
+// shouldContinueEvent reports whether a line should be merged into the current log event.
+func shouldContinueEvent(line string, stacktraceMode bool) bool {
+	if isJavaStacktraceLine(line) {
+		return true
+	}
+
+	if !stacktraceMode {
+		return false
+	}
+
+	return strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t")
+}
+
+// isJavaStacktraceLine reports whether a line looks like part of a Java traceback.
+func isJavaStacktraceLine(line string) bool {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" {
+		return false
+	}
+
+	switch {
+	case strings.HasPrefix(trimmed, "at "):
+		return true
+	case strings.HasPrefix(trimmed, "Caused by:"):
+		return true
+	case strings.HasPrefix(trimmed, "Suppressed:"):
+		return true
+	case strings.HasPrefix(trimmed, "... ") && strings.HasSuffix(trimmed, " more"):
+		return true
+	case javaExceptionPattern.MatchString(trimmed):
+		return true
+	default:
+		return false
 	}
 }
 
