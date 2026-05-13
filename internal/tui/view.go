@@ -9,6 +9,12 @@ import (
 	"github.com/gi8lino/loggo/internal/logentry"
 )
 
+const (
+	timestampColumnWidth = 24
+	levelColumnWidth     = 5
+	fieldColumnWidth     = 18
+)
+
 // View renders the complete TUI.
 func (m Model) View() tea.View {
 	width := m.width
@@ -267,23 +273,23 @@ func (m Model) headerLine() string {
 	parts := []string{}
 
 	if !m.isHiddenField("timestamp") {
-		parts = append(parts, padRight("TIMESTAMP", 9))
+		parts = append(parts, formatColumn("TIMESTAMP", timestampColumnWidth))
 	}
 	if !m.isHiddenField("level") {
-		parts = append(parts, padRight("LEVEL", 5))
+		parts = append(parts, formatColumn("LEVEL", levelColumnWidth))
 	}
 	for _, field := range m.activeProfile.Fields {
 		if isCoreField(field) || m.isHiddenField(field) {
 			continue
 		}
 
-		parts = append(parts, strings.ToUpper(field))
+		parts = append(parts, formatColumn(strings.ToUpper(field), fieldColumnWidth))
 	}
 	if !m.isHiddenField("message") {
 		parts = append(parts, "MESSAGE")
 	}
 
-	return strings.Join(parts, " ")
+	return " " + strings.Join(parts, " ")
 }
 
 // renderEntry renders one parsed log entry.
@@ -295,12 +301,12 @@ func (m Model) renderEntry(entry logentry.Entry) string {
 	parts := []string{}
 
 	if entry.Timestamp != "" && !m.isHiddenField("timestamp") {
-		parts = append(parts, colorStyle(m.activeProfile.Colors.Timestamp).Render(entry.Timestamp))
+		parts = append(parts, colorStyle(m.activeProfile.Colors.Timestamp).Render(formatColumn(entry.Timestamp, timestampColumnWidth)))
 	}
 
 	if entry.Level != "" && !m.isHiddenField("level") {
 		color := m.activeProfile.Colors.Levels[strings.ToUpper(entry.Level)]
-		parts = append(parts, colorStyle(color).Render(padRight(strings.ToUpper(entry.Level), 5)))
+		parts = append(parts, colorStyle(color).Render(formatColumn(strings.ToUpper(entry.Level), levelColumnWidth)))
 	}
 
 	for _, field := range m.activeProfile.Fields {
@@ -314,7 +320,7 @@ func (m Model) renderEntry(entry logentry.Entry) string {
 		}
 
 		color := m.activeProfile.Colors.Fields[field]
-		parts = append(parts, colorStyle(color).Render(field+"="+value))
+		parts = append(parts, colorStyle(color).Render(formatColumn(field+"="+value, fieldColumnWidth)))
 	}
 
 	message := entry.Message
@@ -327,6 +333,15 @@ func (m Model) renderEntry(entry logentry.Entry) string {
 	}
 
 	return strings.Join(parts, " ")
+}
+
+// formatColumn pads one non-message column to a stable width.
+func formatColumn(value string, width int) string {
+	if width <= 0 {
+		return value
+	}
+
+	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(value)
 }
 
 // renderFormat renders a configured format with field placeholders.
