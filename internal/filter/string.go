@@ -62,6 +62,50 @@ func (m notMatcher) String() string {
 	return m.raw
 }
 
+// allMatcher matches when every nested matcher matches.
+type allMatcher struct {
+	matchers []Matcher
+	raw      string
+}
+
+// Match reports whether all nested matchers match.
+func (m allMatcher) Match(entry logentry.Entry) bool {
+	for _, matcher := range m.matchers {
+		if !matcher.Match(entry) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// String returns the matcher expression.
+func (m allMatcher) String() string {
+	return m.raw
+}
+
+// anyMatcher matches when any nested matcher matches.
+type anyMatcher struct {
+	matchers []Matcher
+	raw      string
+}
+
+// Match reports whether any nested matcher matches.
+func (m anyMatcher) Match(entry logentry.Entry) bool {
+	for _, matcher := range m.matchers {
+		if matcher.Match(entry) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// String returns the matcher expression.
+func (m anyMatcher) String() string {
+	return m.raw
+}
+
 // existsMatcher matches when a field exists.
 type existsMatcher struct {
 	field string

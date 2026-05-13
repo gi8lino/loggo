@@ -81,6 +81,8 @@ func Run(
 	stream := ingest.Start(ingestCtx, stdIn, ingest.Options{
 		BatchSize:     parsed.BatchSize,
 		FlushInterval: parsed.FlushInterval,
+		JoinMultiline: true,
+		MaxEventLines: 256,
 	})
 
 	model, err := tui.NewModel(cfg.Profiles, activeProfile, stream, tui.InitialState{
@@ -89,6 +91,7 @@ func Run(
 		Exclude:       parsed.Excludes,
 		HiddenFields:  activeProfile.HiddenFields,
 		Overrides:     overrides,
+		StopStream:    cancelIngest,
 		BufferSize:    parsed.BufferSize,
 		Debug:         parsed.Debug,
 		LoadedConfigs: loadedConfigs,

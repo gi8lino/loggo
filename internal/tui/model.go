@@ -25,6 +25,7 @@ type InitialState struct {
 	Exclude       []string
 	HiddenFields  []string
 	Overrides     profile.RuntimeOverrides
+	StopStream    func()
 	BufferSize    int
 	Debug         bool
 	LoadedConfigs []string
@@ -80,9 +81,11 @@ type Model struct {
 	pending              []string
 	filterSet            *filter.Set
 	search               string
+	searchMatcher        filter.Matcher
 	include              []string
 	exclude              []string
 	overrides            profile.RuntimeOverrides
+	stopStream           func()
 	hiddenFields         map[string]struct{}
 	columnFieldOptions   []string
 	columnHiddenDraft    map[string]struct{}
@@ -144,6 +147,7 @@ func NewModel(
 		include:       append([]string{}, initial.Include...),
 		exclude:       append([]string{}, initial.Exclude...),
 		overrides:     initial.Overrides,
+		stopStream:    initial.StopStream,
 		hiddenFields:  fieldSet(initial.HiddenFields),
 		follow:        true,
 		bufferSize:    initial.BufferSize,
@@ -157,6 +161,7 @@ func NewModel(
 		return Model{}, err
 	}
 
+	model.setSearchQuery(initial.Search)
 	model.rebuildVisible()
 
 	return model, nil

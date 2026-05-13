@@ -9,6 +9,10 @@ import (
 
 // handleKey routes key messages to the active mode handler.
 func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if msg.String() == "ctrl+c" {
+		return m.requestQuit()
+	}
+
 	switch m.mode {
 	case modeSearch, modeFilterValue, modeExcludeValue:
 		return m.handleInputKey(msg), nil
@@ -30,8 +34,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // handleNormalKey handles keyboard input in normal mode.
 func (m Model) handleNormalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "ctrl+c", "q":
-		return m, tea.Quit
+	case "q":
+		return m.requestQuit()
 	case "/":
 		m.mode = modeSearch
 		m.input = m.search
@@ -44,7 +48,7 @@ func (m Model) handleNormalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "X":
 		m.removeLastExclude()
 	case "c":
-		m.search = ""
+		m.setSearchQuery("")
 		m.input = ""
 	case "v":
 		m.startColumnPicker()
@@ -67,7 +71,7 @@ func (m Model) handleNormalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.follow = true
 		m.selected = max(0, len(m.visible)-1)
 	case "r":
-		m.search = ""
+		m.setSearchQuery("")
 		m.include = nil
 		m.exclude = nil
 		m.hiddenFields = fieldSet(m.activeProfile.HiddenFields)
@@ -115,19 +119,19 @@ func (m Model) handleInputKey(msg tea.KeyPressMsg) Model {
 
 			m.input = m.input[:len(m.input)-size]
 			if m.mode == modeSearch {
-				m.search = m.input
+				m.setSearchQuery(m.input)
 			}
 		}
 	case "ctrl+u":
 		m.input = ""
 		if m.mode == modeSearch {
-			m.search = ""
+			m.setSearchQuery("")
 		}
 	default:
 		if len(msg.Text) > 0 {
 			m.input += msg.Text
 			if m.mode == modeSearch {
-				m.search = m.input
+				m.setSearchQuery(m.input)
 			}
 		}
 	}
@@ -249,8 +253,6 @@ func (m Model) handleOverlayKey(msg tea.KeyPressMsg) Model {
 	switch msg.String() {
 	case "esc", "enter":
 		m.mode = modeNormal
-	case "q", "ctrl+c":
-		m.mode = modeNormal
 	}
 
 	return m
@@ -262,7 +264,7 @@ func (m *Model) applyInput() {
 
 	switch m.mode {
 	case modeSearch:
-		m.search = value
+		m.setSearchQuery(value)
 	case modeFilterValue, modeExcludeValue:
 		if value != "" {
 			m.applyGuidedFilter(value)
@@ -273,4 +275,13 @@ func (m *Model) applyInput() {
 	m.input = ""
 	m.mode = modeNormal
 	m.err = nil
+}
+
+// requestQuit cancels background ingestion before terminating the TUI.
+func (m Model) requestQuit() (tea.Model, tea.Cmd) {
+	if m.stopStream != nil {
+		m.stopStream()
+	}
+
+	return m, tea.Quit
 }

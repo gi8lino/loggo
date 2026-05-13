@@ -38,10 +38,17 @@ func (m Model) helpView(width int, height int) []string {
 		"user_agent wildcard *kube-probe*",
 		"status = 200",
 		"status >= 500",
+		"level = ERROR and status >= 500",
+		"not (path wildcard /health* or path wildcard /metrics*)",
 		"method = PROPFIND",
 		"remote_user = gi8",
 		"time after 2026-05-12T13:14:00Z",
 		"time before 2026-05-12T13:15:00Z",
+		"",
+		"search examples",
+		"---------------",
+		"trace_id:abc123",
+		"level = ERROR and service = orders-api",
 	}
 
 	if len(m.loadedConfigs) > 0 {

@@ -111,7 +111,7 @@ func (m Model) activeLine() string {
 		line = strings.Join(badges, " ") + " "
 	}
 
-	line += fmt.Sprintf("search: %s   filters: %s   hidden: %s", search, filters, excludes)
+	line += fmt.Sprintf("search: %s   filters: %s   excludes: %s", search, filters, excludes)
 
 	if len(m.hiddenFields) > 0 {
 		line += fmt.Sprintf("   hidden fields: %d", len(m.hiddenFields))

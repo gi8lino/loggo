@@ -262,6 +262,12 @@ func (m *Model) setFilters(include []string, exclude []string) error {
 	return nil
 }
 
+// setSearchQuery updates the active search string and compiles a structured matcher when possible.
+func (m *Model) setSearchQuery(query string) {
+	m.search = query
+	m.searchMatcher = compileSearchMatcher(query)
+}
+
 // rebuildFilter rebuilds the active filter set.
 func (m *Model) rebuildFilter() error {
 	set, err := filter.NewSet(m.activeProfile, m.include, m.exclude)
@@ -370,6 +376,10 @@ func (m Model) matchesSearch(entry logentry.Entry) bool {
 	search := strings.ToLower(strings.TrimSpace(m.search))
 	if search == "" {
 		return false
+	}
+
+	if m.searchMatcher != nil {
+		return m.searchMatcher.Match(entry)
 	}
 
 	return strings.Contains(strings.ToLower(m.searchCorpus(entry)), search)
@@ -586,4 +596,63 @@ func hasField(set map[string]struct{}, field string) bool {
 	}
 
 	return false
+}
+
+// compileSearchMatcher returns a field-aware matcher for structured search queries.
+func compileSearchMatcher(query string) filter.Matcher {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil
+	}
+
+	if field, value, ok := parseQuickSearch(query); ok {
+		matcher, err := filter.ParseExpression(field + " contains " + value)
+		if err == nil {
+			return matcher
+		}
+	}
+
+	if !looksStructuredSearch(query) {
+		return nil
+	}
+
+	matcher, err := filter.ParseExpression(query)
+	if err != nil {
+		return nil
+	}
+
+	return matcher
+}
+
+// parseQuickSearch converts field:value search syntax into a filter matcher.
+func parseQuickSearch(query string) (string, string, bool) {
+	if strings.Contains(query, " ") {
+		return "", "", false
+	}
+
+	field, value, ok := strings.Cut(query, ":")
+	if !ok {
+		return "", "", false
+	}
+
+	field = strings.TrimSpace(field)
+	value = strings.TrimSpace(value)
+	if field == "" || value == "" {
+		return "", "", false
+	}
+
+	return field, value, true
+}
+
+// looksStructuredSearch reports whether a query appears to be field-aware instead of plain text.
+func looksStructuredSearch(query string) bool {
+	lower := strings.ToLower(query)
+
+	return strings.ContainsAny(query, "()<>=") ||
+		strings.Contains(query, "!=") ||
+		strings.Contains(lower, " and ") ||
+		strings.Contains(lower, " or ") ||
+		strings.HasPrefix(lower, "not ") ||
+		strings.HasPrefix(lower, "after ") ||
+		strings.HasPrefix(lower, "before ")
 }
