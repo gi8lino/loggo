@@ -196,22 +196,15 @@ func (m Model) logView(width int, height int) []string {
 
 	for visibleIndex := start; visibleIndex < end; visibleIndex++ {
 		entry := m.parsed[m.visible[visibleIndex]]
-		line := m.renderEntry(entry)
-
-		if m.matchesSearch(entry) {
-			line = matchStyle.Render(line)
-		}
-
-		if visibleIndex == m.selected {
-			line = selectedStyle.Render(line)
-		}
+		selected := visibleIndex == m.selected
+		matched := m.matchesSearch(entry)
 
 		prefix := " "
-		if visibleIndex == m.selected {
+		if selected {
 			prefix = ">"
 		}
 
-		lines = append(lines, m.fit(width, prefix+line))
+		lines = append(lines, m.renderLogLine(width, prefix, entry, selected, matched))
 	}
 
 	return padLines(lines, height)
@@ -293,7 +286,7 @@ func (m Model) headerLine() string {
 }
 
 // renderEntry renders one parsed log entry.
-func (m Model) renderEntry(entry logentry.Entry) string {
+func (m Model) renderEntry(entry logentry.Entry, selected bool) string {
 	if m.activeProfile.Format != "" {
 		return m.renderFormat(entry)
 	}
@@ -301,12 +294,12 @@ func (m Model) renderEntry(entry logentry.Entry) string {
 	parts := []string{}
 
 	if entry.Timestamp != "" && !m.isHiddenField("timestamp") {
-		parts = append(parts, colorStyle(m.activeProfile.Colors.Timestamp).Render(formatColumn(entry.Timestamp, timestampColumnWidth)))
+		parts = append(parts, m.renderCell(entry.Timestamp, m.activeProfile.Colors.Timestamp, timestampColumnWidth, selected))
 	}
 
 	if entry.Level != "" && !m.isHiddenField("level") {
 		color := m.activeProfile.Colors.Levels[strings.ToUpper(entry.Level)]
-		parts = append(parts, colorStyle(color).Render(formatColumn(strings.ToUpper(entry.Level), levelColumnWidth)))
+		parts = append(parts, m.renderCell(strings.ToUpper(entry.Level), color, levelColumnWidth, selected))
 	}
 
 	for _, field := range m.activeProfile.Fields {
@@ -320,7 +313,7 @@ func (m Model) renderEntry(entry logentry.Entry) string {
 		}
 
 		color := m.activeProfile.Colors.Fields[field]
-		parts = append(parts, colorStyle(color).Render(formatColumn(field+"="+value, fieldColumnWidth)))
+		parts = append(parts, m.renderCell(field+"="+value, color, fieldColumnWidth, selected))
 	}
 
 	message := entry.Message
@@ -329,10 +322,30 @@ func (m Model) renderEntry(entry logentry.Entry) string {
 	}
 
 	if !m.isHiddenField("message") {
-		parts = append(parts, colorStyle(m.activeProfile.Colors.Message).Render(message))
+		parts = append(parts, m.renderCell(message, m.activeProfile.Colors.Message, 0, selected))
 	}
 
 	return strings.Join(parts, " ")
+}
+
+// renderLogLine renders one visible log row with selection and search highlighting.
+func (m Model) renderLogLine(width int, prefix string, entry logentry.Entry, selected bool, matched bool) string {
+	contentWidth := width - lipgloss.Width(prefix)
+	if contentWidth < 1 {
+		contentWidth = 1
+	}
+
+	line := m.fit(contentWidth, m.renderEntry(entry, selected))
+	rendered := prefix + line
+
+	if matched && !selected {
+		rendered = matchStyle.Width(width).Render(rendered)
+	}
+	if selected {
+		rendered = selectedStyle.Width(width).Render(rendered)
+	}
+
+	return rendered
 }
 
 // formatColumn pads one non-message column to a stable width.
@@ -342,6 +355,19 @@ func formatColumn(value string, width int) string {
 	}
 
 	return lipgloss.NewStyle().Width(width).MaxWidth(width).Render(value)
+}
+
+// renderCell renders one row cell with optional selection background.
+func (m Model) renderCell(value string, color string, width int, selected bool) string {
+	style := colorStyle(color)
+	if width > 0 {
+		style = style.Width(width).MaxWidth(width)
+	}
+	if selected {
+		style = style.Background(lipgloss.Color("236"))
+	}
+
+	return style.Render(value)
 }
 
 // renderFormat renders a configured format with field placeholders.
