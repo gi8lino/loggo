@@ -172,15 +172,10 @@ func (m Model) logView(width int, height int) []string {
 	lines := make([]string, 0, height)
 	bodyHeight := height
 
-	if header := m.headerLine(); header != "" && m.showHeaders {
-		lines = append(lines, m.fit(width, headerStyle.Render(header)))
-		bodyHeight--
-		if bodyHeight < 1 {
-			return padLines(lines, height)
-		}
-	}
-
 	if len(m.visible) == 0 {
+		if header := m.headerLine(nil); header != "" && m.showHeaders {
+			lines = append(lines, m.fit(width, headerStyle.Render(header)))
+		}
 		lines = append(lines, dimStyle.Render(" no visible log lines"))
 
 		return padLines(lines, height)
@@ -193,6 +188,22 @@ func (m Model) logView(width int, height int) []string {
 
 	start = max(0, start)
 	end := min(len(m.visible), start+bodyHeight)
+	fields := m.visibleFields(start, end)
+
+	if header := m.headerLine(fields); header != "" && m.showHeaders {
+		lines = append(lines, m.fit(width, headerStyle.Render(header)))
+		bodyHeight--
+		if bodyHeight < 1 {
+			return padLines(lines, height)
+		}
+		start = m.selected - bodyHeight/2
+		if m.follow {
+			start = len(m.visible) - bodyHeight
+		}
+		start = max(0, start)
+		end = min(len(m.visible), start+bodyHeight)
+		fields = m.visibleFields(start, end)
+	}
 
 	for visibleIndex := start; visibleIndex < end; visibleIndex++ {
 		entry := m.parsed[m.visible[visibleIndex]]
@@ -204,7 +215,7 @@ func (m Model) logView(width int, height int) []string {
 			prefix = ">"
 		}
 
-		lines = append(lines, m.renderLogLine(width, prefix, entry, selected, matched))
+		lines = append(lines, m.renderLogLine(width, prefix, entry, fields, selected, matched))
 	}
 
 	return padLines(lines, height)
@@ -258,7 +269,7 @@ func (m Model) streamStateBadge() string {
 }
 
 // headerLine renders fixed column headers when using the default log row layout.
-func (m Model) headerLine() string {
+func (m Model) headerLine(fields []string) string {
 	if m.activeProfile.Format != "" {
 		return ""
 	}
@@ -271,11 +282,7 @@ func (m Model) headerLine() string {
 	if !m.isHiddenField("level") {
 		parts = append(parts, formatColumn("LEVEL", levelColumnWidth))
 	}
-	for _, field := range m.activeProfile.Fields {
-		if isCoreField(field) || m.isHiddenField(field) {
-			continue
-		}
-
+	for _, field := range fields {
 		parts = append(parts, formatColumn(strings.ToUpper(field), fieldColumnWidth))
 	}
 	if !m.isHiddenField("message") {
@@ -286,7 +293,7 @@ func (m Model) headerLine() string {
 }
 
 // renderEntry renders one parsed log entry.
-func (m Model) renderEntry(entry logentry.Entry, selected bool) string {
+func (m Model) renderEntry(entry logentry.Entry, fields []string, selected bool) string {
 	if m.activeProfile.Format != "" {
 		return m.renderFormat(entry)
 	}
@@ -302,13 +309,10 @@ func (m Model) renderEntry(entry logentry.Entry, selected bool) string {
 		parts = append(parts, m.renderCell(strings.ToUpper(entry.Level), color, levelColumnWidth, selected))
 	}
 
-	for _, field := range m.activeProfile.Fields {
-		if isCoreField(field) || m.isHiddenField(field) {
-			continue
-		}
-
+	for _, field := range fields {
 		value, ok := entry.Get(field)
 		if !ok || value == "" {
+			parts = append(parts, m.renderCell("", "", fieldColumnWidth, selected))
 			continue
 		}
 
@@ -329,13 +333,13 @@ func (m Model) renderEntry(entry logentry.Entry, selected bool) string {
 }
 
 // renderLogLine renders one visible log row with selection and search highlighting.
-func (m Model) renderLogLine(width int, prefix string, entry logentry.Entry, selected bool, matched bool) string {
+func (m Model) renderLogLine(width int, prefix string, entry logentry.Entry, fields []string, selected bool, matched bool) string {
 	contentWidth := width - lipgloss.Width(prefix)
 	if contentWidth < 1 {
 		contentWidth = 1
 	}
 
-	line := m.fit(contentWidth, m.renderEntry(entry, selected))
+	line := m.fit(contentWidth, m.renderEntry(entry, fields, selected))
 	rendered := prefix + line
 
 	if matched && !selected {
@@ -346,6 +350,28 @@ func (m Model) renderLogLine(width int, prefix string, entry logentry.Entry, sel
 	}
 
 	return rendered
+}
+
+// visibleFields returns configured non-core fields that are present in the visible viewport slice.
+func (m Model) visibleFields(start int, end int) []string {
+	fields := []string{}
+
+	for _, field := range m.activeProfile.Fields {
+		if isCoreField(field) || m.isHiddenField(field) {
+			continue
+		}
+
+		for visibleIndex := start; visibleIndex < end; visibleIndex++ {
+			entry := m.parsed[m.visible[visibleIndex]]
+			value, ok := entry.Get(field)
+			if ok && strings.TrimSpace(value) != "" {
+				fields = append(fields, field)
+				break
+			}
+		}
+	}
+
+	return fields
 }
 
 // formatColumn pads one non-message column to a stable width.
