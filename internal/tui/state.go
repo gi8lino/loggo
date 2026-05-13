@@ -457,6 +457,22 @@ func (m *Model) moveSearch(delta int) {
 	}
 }
 
+// jumpToSearchMatch moves selection to the first matching visible row.
+func (m *Model) jumpToSearchMatch() {
+	if strings.TrimSpace(m.search) == "" || len(m.visible) == 0 {
+		return
+	}
+
+	for index, visibleIndex := range m.visible {
+		entry := m.parsed[visibleIndex]
+		if m.matchesSearch(entry) {
+			m.selected = index
+			m.follow = false
+			return
+		}
+	}
+}
+
 // matchesSearch reports whether entry matches the active search query.
 func (m Model) matchesSearch(entry logentry.Entry) bool {
 	search := strings.ToLower(strings.TrimSpace(m.search))

@@ -364,7 +364,15 @@ func (m *Model) applyInput() {
 
 	switch m.mode {
 	case modeSearch:
+		previous := strings.TrimSpace(m.search)
 		m.setSearchQuery(value)
+		if value != "" {
+			if value == previous {
+				m.moveSearch(1)
+			} else {
+				m.jumpToSearchMatch()
+			}
+		}
 	case modeFilterValue, modeExcludeValue:
 		if value != "" {
 			m.applyGuidedFilter(value)

@@ -127,6 +127,47 @@ func TestStructuredSearchUsesFieldAwareMatcher(t *testing.T) {
 	assert.True(t, model.matchesSearch(entry))
 }
 
+func TestApplyInputJumpsToFirstSearchMatch(t *testing.T) {
+	model := Model{
+		mode:  modeSearch,
+		input: "account is locked",
+		parsed: []logentry.Entry{
+			logentry.New("healthy"),
+			logentry.New("ORA-28000: The account is locked."),
+			logentry.New("healthy again"),
+		},
+		visible: []int{0, 1, 2},
+	}
+
+	model.applyInput()
+
+	assert.Equal(t, "account is locked", model.search)
+	assert.Equal(t, 1, model.selected)
+	assert.False(t, model.follow)
+	assert.Equal(t, modeNormal, model.mode)
+}
+
+func TestApplyInputRepeatingSearchMovesToNextMatch(t *testing.T) {
+	model := Model{
+		mode:     modeSearch,
+		search:   "account is locked",
+		input:    "account is locked",
+		selected: 1,
+		parsed: []logentry.Entry{
+			logentry.New("healthy"),
+			logentry.New("ORA-28000: The account is locked."),
+			logentry.New("healthy again"),
+			logentry.New("The account is locked for user"),
+		},
+		visible: []int{0, 1, 2, 3},
+	}
+
+	model.applyInput()
+
+	assert.Equal(t, 3, model.selected)
+	assert.Equal(t, modeNormal, model.mode)
+}
+
 func TestHandleKeySupportsVimNavigation(t *testing.T) {
 	model := Model{
 		visible:  []int{0, 1, 2},
