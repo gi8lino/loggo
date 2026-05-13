@@ -25,6 +25,7 @@ type Profile struct {
 	LevelField     string      `yaml:"levelField"`
 	MessageField   string      `yaml:"messageField"`
 	Fields         []string    `yaml:"fields"`
+	FixedFields    bool        `yaml:"fixedFields"`
 	HiddenFields   []string    `yaml:"hiddenFields"`
 	Format         string      `yaml:"format"`
 	Split          SplitConfig `yaml:"split"`

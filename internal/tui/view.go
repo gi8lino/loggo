@@ -194,7 +194,7 @@ func (m Model) logView(width int, height int) []string {
 
 	start = max(0, start)
 	end := min(len(m.visible), start+bodyHeight)
-	fields := m.activeFields()
+	fields := m.displayFields()
 
 	if header := m.headerLine(fields); header != "" && m.showHeaders {
 		lines = append(lines, viewportLine(headerStyle.Render(header), m.horizontalOffset, width))
@@ -357,8 +357,18 @@ func (m Model) renderLogLine(width int, prefix string, entry logentry.Entry, fie
 	return viewportLine(rendered, m.horizontalOffset, width)
 }
 
-// activeFields returns configured non-core fields that are currently enabled.
-func (m Model) activeFields() []string {
+// displayFields returns the configured fields that should currently be rendered.
+func (m Model) displayFields() []string {
+	fields := m.configuredFields()
+	if m.activeProfile.FixedFields {
+		return fields
+	}
+
+	return m.presentFields(fields)
+}
+
+// configuredFields returns configured non-core fields that are currently enabled.
+func (m Model) configuredFields() []string {
 	fields := []string{}
 
 	for _, field := range m.activeProfile.Fields {
@@ -370,6 +380,28 @@ func (m Model) activeFields() []string {
 	}
 
 	return fields
+}
+
+// presentFields keeps field order stable while dropping columns that are empty
+// across the currently visible dataset.
+func (m Model) presentFields(fields []string) []string {
+	if len(fields) == 0 || len(m.visible) == 0 {
+		return fields
+	}
+
+	present := make([]string, 0, len(fields))
+
+	for _, field := range fields {
+		for _, index := range m.visible {
+			value, ok := m.parsed[index].Get(field)
+			if ok && value != "" {
+				present = append(present, field)
+				break
+			}
+		}
+	}
+
+	return present
 }
 
 // formatColumn pads one non-message column to a stable width.
