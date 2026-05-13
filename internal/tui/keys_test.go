@@ -74,6 +74,33 @@ func TestHandleKeyAdjustsFilterContext(t *testing.T) {
 	assert.Equal(t, []int{1}, updated.visible)
 }
 
+func TestFilterContextKeepsSelectionAnchoredToSameRawLine(t *testing.T) {
+	model := Model{
+		include: []string{"level = ERROR"},
+		parsed: []logentry.Entry{
+			{Level: "INFO", Fields: map[string]string{}},
+			{Level: "ERROR", Fields: map[string]string{}},
+			{Level: "INFO", Fields: map[string]string{}},
+			{Level: "ERROR", Fields: map[string]string{}},
+			{Level: "INFO", Fields: map[string]string{}},
+		},
+	}
+
+	require.NoError(t, model.rebuildFilter())
+	model.rebuildVisible()
+	model.selected = 1
+
+	next, _ := model.handleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
+	updated := next.(Model)
+	require.Equal(t, []int{0, 1, 2, 3, 4}, updated.visible)
+	assert.Equal(t, 3, updated.visible[updated.selected])
+
+	next, _ = updated.handleKey(tea.KeyPressMsg{Code: '[', Text: "["})
+	updated = next.(Model)
+	require.Equal(t, []int{1, 3}, updated.visible)
+	assert.Equal(t, 3, updated.visible[updated.selected])
+}
+
 func TestStreamStateBadgeReflectsFollowMode(t *testing.T) {
 	model := Model{follow: true}
 	assert.Contains(t, model.streamStateBadge(), "FOLLOWING")

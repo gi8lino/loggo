@@ -330,6 +330,7 @@ func (m *Model) reparseAll() {
 
 // rebuildVisible recomputes visible indexes after global state changes.
 func (m *Model) rebuildVisible() {
+	anchor := m.selectedRawIndex()
 	matches := m.visible[:0]
 
 	for index, entry := range m.parsed {
@@ -344,7 +345,7 @@ func (m *Model) rebuildVisible() {
 		m.visible = matches
 	}
 
-	m.syncSelectionAfterAppend()
+	m.restoreSelection(anchor)
 }
 
 // increaseFilterContext expands the number of surrounding lines shown for filtered matches.
@@ -484,6 +485,61 @@ func (m Model) activeEntry() (logentry.Entry, bool) {
 	}
 
 	return m.parsed[m.visible[m.selected]], true
+}
+
+// selectedRawIndex returns the raw parsed index for the current selection.
+func (m Model) selectedRawIndex() int {
+	if len(m.visible) == 0 || m.selected < 0 || m.selected >= len(m.visible) {
+		return -1
+	}
+
+	return m.visible[m.selected]
+}
+
+// restoreSelection restores the current selection around an anchored raw index.
+func (m *Model) restoreSelection(anchor int) {
+	if len(m.visible) == 0 {
+		m.selected = 0
+		return
+	}
+
+	if m.follow && !m.paused {
+		m.selected = len(m.visible) - 1
+		return
+	}
+
+	if anchor >= 0 {
+		if index := slices.Index(m.visible, anchor); index >= 0 {
+			m.selected = index
+			return
+		}
+
+		insertAt, _ := slices.BinarySearch(m.visible, anchor)
+		switch {
+		case insertAt <= 0:
+			m.selected = 0
+			return
+		case insertAt >= len(m.visible):
+			m.selected = len(m.visible) - 1
+			return
+		default:
+			before := m.visible[insertAt-1]
+			after := m.visible[insertAt]
+			if anchor-before <= after-anchor {
+				m.selected = insertAt - 1
+			} else {
+				m.selected = insertAt
+			}
+			return
+		}
+	}
+
+	if m.selected >= len(m.visible) {
+		m.selected = len(m.visible) - 1
+	}
+	if m.selected < 0 {
+		m.selected = 0
+	}
 }
 
 // activeProfileIndex returns the current active profile index.
