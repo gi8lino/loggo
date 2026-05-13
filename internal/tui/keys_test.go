@@ -50,6 +50,30 @@ func TestHandleKeyTogglesHeaders(t *testing.T) {
 	assert.True(t, updated.showHeaders)
 }
 
+func TestHandleKeyAdjustsFilterContext(t *testing.T) {
+	model := Model{
+		include: []string{"level = ERROR"},
+		parsed: []logentry.Entry{
+			{Level: "INFO", Fields: map[string]string{}},
+			{Level: "ERROR", Fields: map[string]string{}},
+			{Level: "INFO", Fields: map[string]string{}},
+		},
+	}
+
+	require.NoError(t, model.rebuildFilter())
+	model.rebuildVisible()
+
+	next, _ := model.handleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
+	updated := next.(Model)
+	assert.Equal(t, 1, updated.filterContext)
+	assert.Equal(t, []int{0, 1, 2}, updated.visible)
+
+	next, _ = updated.handleKey(tea.KeyPressMsg{Code: '[', Text: "["})
+	updated = next.(Model)
+	assert.Equal(t, 0, updated.filterContext)
+	assert.Equal(t, []int{1}, updated.visible)
+}
+
 func TestStreamStateBadgeReflectsFollowMode(t *testing.T) {
 	model := Model{follow: true}
 	assert.Contains(t, model.streamStateBadge(), "FOLLOWING")

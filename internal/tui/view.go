@@ -139,6 +139,9 @@ func (m Model) activeLine() string {
 	} else {
 		line += "   headers: off"
 	}
+	if m.filterContext > 0 && m.hasInteractiveFilters() {
+		line += fmt.Sprintf("   context: %d", m.filterContext)
+	}
 
 	if m.err != nil {
 		line += "   " + errorStyle.Render("error: "+m.err.Error())
@@ -253,7 +256,7 @@ func (m Model) inputLine() string {
 
 // helpLine renders the bottom help line.
 func (m Model) helpLine() string {
-	return dimStyle.Render("/ search  c clear  f filter  x exclude  v columns  H headers  F/X remove  r reset  p profile  ? help  q quit")
+	return dimStyle.Render("/ search  c clear  f filter  x exclude  [/ ] context  v columns  H headers  F/X remove  r reset  p profile  ? help  q quit")
 }
 
 // streamStateBadge renders the current viewport follow state.

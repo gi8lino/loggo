@@ -177,6 +177,10 @@ func (m *Model) processPending(limit int) {
 		m.appendLineIncremental(line)
 	}
 
+	if m.filterContext > 0 && m.hasInteractiveFilters() {
+		m.rebuildVisible()
+	}
+
 	m.trimOverflow()
 	m.syncSelectionAfterAppend()
 }
@@ -196,6 +200,10 @@ func (m *Model) appendLineIncremental(line string) {
 
 	m.raw = append(m.raw, raw)
 	m.parsed = append(m.parsed, entry)
+
+	if m.filterContext > 0 && m.hasInteractiveFilters() {
+		return
+	}
 
 	if m.filterSet == nil || m.filterSet.Match(entry) {
 		m.visible = append(m.visible, index)
@@ -322,15 +330,72 @@ func (m *Model) reparseAll() {
 
 // rebuildVisible recomputes visible indexes after global state changes.
 func (m *Model) rebuildVisible() {
-	m.visible = m.visible[:0]
+	matches := m.visible[:0]
 
 	for index, entry := range m.parsed {
 		if m.filterSet == nil || m.filterSet.Match(entry) {
-			m.visible = append(m.visible, index)
+			matches = append(matches, index)
 		}
 	}
 
+	if m.filterContext > 0 && m.hasInteractiveFilters() {
+		m.visible = expandWithContext(matches, len(m.parsed), m.filterContext)
+	} else {
+		m.visible = matches
+	}
+
 	m.syncSelectionAfterAppend()
+}
+
+// increaseFilterContext expands the number of surrounding lines shown for filtered matches.
+func (m *Model) increaseFilterContext() {
+	if !m.hasInteractiveFilters() {
+		return
+	}
+
+	m.filterContext++
+	m.rebuildVisible()
+}
+
+// decreaseFilterContext reduces the number of surrounding lines shown for filtered matches.
+func (m *Model) decreaseFilterContext() {
+	if !m.hasInteractiveFilters() || m.filterContext == 0 {
+		return
+	}
+
+	m.filterContext--
+	m.rebuildVisible()
+}
+
+// hasInteractiveFilters reports whether runtime include/exclude filters are active.
+func (m Model) hasInteractiveFilters() bool {
+	return len(m.include) > 0 || len(m.exclude) > 0
+}
+
+// expandWithContext expands matching indexes with surrounding context lines.
+func expandWithContext(matches []int, total int, context int) []int {
+	if context <= 0 || len(matches) == 0 {
+		return matches
+	}
+
+	expanded := make([]int, 0, len(matches)*(context*2+1))
+	seen := make(map[int]struct{}, len(matches)*(context*2+1))
+
+	for _, match := range matches {
+		start := max(0, match-context)
+		end := min(total-1, match+context)
+
+		for index := start; index <= end; index++ {
+			if _, ok := seen[index]; ok {
+				continue
+			}
+
+			seen[index] = struct{}{}
+			expanded = append(expanded, index)
+		}
+	}
+
+	return expanded
 }
 
 // moveSelection moves the selected visible entry.

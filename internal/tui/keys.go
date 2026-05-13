@@ -63,6 +63,10 @@ func (m Model) handleNormalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.startColumnPicker()
 	case "H":
 		m.showHeaders = !m.showHeaders
+	case "]":
+		m.increaseFilterContext()
+	case "[":
+		m.decreaseFilterContext()
 	case "p":
 		m.mode = modeProfile
 		m.profileCursor = m.activeProfileIndex()
@@ -85,6 +89,7 @@ func (m Model) handleNormalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.setSearchQuery("")
 		m.include = nil
 		m.exclude = nil
+		m.filterContext = 0
 		m.hiddenFields = fieldSet(m.activeProfile.HiddenFields)
 		m.err = nil
 		_ = m.rebuildFilter()

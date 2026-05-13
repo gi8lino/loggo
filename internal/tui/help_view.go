@@ -12,6 +12,8 @@ func (m Model) helpView(width int, height int) []string {
 		"x            add guided exclude filter",
 		"F            remove last include filter",
 		"X            remove last exclude filter",
+		"]            show one more line of filter context",
+		"[            show one less line of filter context",
 		"v            choose visible columns",
 		"H            hide or show column headers",
 		"r            reset search, filters, and columns to profile defaults",

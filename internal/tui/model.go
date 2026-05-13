@@ -84,6 +84,7 @@ type Model struct {
 	searchMatcher        filter.Matcher
 	include              []string
 	exclude              []string
+	filterContext        int
 	overrides            profile.RuntimeOverrides
 	stopStream           func()
 	hiddenFields         map[string]struct{}
