@@ -32,7 +32,7 @@ Most log tools are great at one of these jobs, but not all of them at once:
 - Highlights search matches without hiding non-matching lines
 - Lets you inspect one entry in detail
 - Uses batched ingestion and frame-based rendering for smoother live streams
-- Ships with built-in profiles, including `nginx`
+- Ships with built-in profiles, including `nginx`, `apache`, `postgres`, `zap`, `ecs`, and `cri`
 
 ## Install
 
@@ -304,6 +304,21 @@ parser: raw
 
 ## Built-in profiles
 
+Available built-ins:
+
+```text
+auto
+json
+logfmt
+raw
+nginx
+apache
+postgres
+zap
+ecs
+cri
+```
+
 ### `nginx`
 
 The built-in `nginx` profile parses access logs like:
@@ -327,6 +342,14 @@ path wildcard /remote.php/dav/*
 user_agent wildcard *kube-probe*
 remote_user = User123
 ```
+
+### Other built-ins
+
+- `apache`: Apache combined access logs
+- `postgres`: PostgreSQL default text logs
+- `zap`: Go services using Uber Zap JSON logs
+- `ecs`: Elastic Common Schema JSON logs
+- `cri`: Container Runtime Interface log files with `timestamp stream flags message`
 
 ## CLI flags
 
