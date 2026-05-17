@@ -2,6 +2,7 @@ package filter
 
 import (
 	"testing"
+	"time"
 
 	"github.com/gi8lino/loggo/internal/logentry"
 	"github.com/stretchr/testify/assert"
@@ -38,4 +39,34 @@ func TestParseExpressionSupportsNegation(t *testing.T) {
 	hidden := logentry.New("request")
 	hidden.Fields["path"] = "/metrics/prometheus"
 	assert.False(t, matcher.Match(hidden))
+}
+
+func TestParseExpressionSupportsTimeOnlyAfterFilter(t *testing.T) {
+	matcher, err := ParseExpression(`time after 15:04`)
+	require.NoError(t, err)
+
+	after := logentry.New("after")
+	after.Time = time.Date(2026, time.May, 17, 15, 5, 0, 0, time.UTC)
+	after.HasTime = true
+	assert.True(t, matcher.Match(after))
+
+	before := logentry.New("before")
+	before.Time = time.Date(2026, time.May, 17, 15, 3, 59, 0, time.UTC)
+	before.HasTime = true
+	assert.False(t, matcher.Match(before))
+}
+
+func TestParseExpressionSupportsTimeOnlyBeforeFilter(t *testing.T) {
+	matcher, err := ParseExpression(`time before 15:04`)
+	require.NoError(t, err)
+
+	before := logentry.New("before")
+	before.Time = time.Date(2026, time.May, 17, 15, 3, 59, 0, time.UTC)
+	before.HasTime = true
+	assert.True(t, matcher.Match(before))
+
+	after := logentry.New("after")
+	after.Time = time.Date(2026, time.May, 17, 15, 4, 1, 0, time.UTC)
+	after.HasTime = true
+	assert.False(t, matcher.Match(after))
 }

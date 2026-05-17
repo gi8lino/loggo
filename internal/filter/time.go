@@ -12,6 +12,7 @@ import (
 type timeMatcher struct {
 	op       string
 	expected time.Time
+	timeOnly bool
 	raw      string
 }
 
@@ -23,7 +24,7 @@ func newTimeMatcher(field string, op string, value string, raw string) (Matcher,
 
 	op = normalizeTimeOp(op)
 
-	parsed, ok := parseFilterTime(value)
+	parsed, timeOnly, ok := parseFilterTime(value)
 	if !ok {
 		return nil, fmt.Errorf("invalid time filter %q", raw)
 	}
@@ -31,6 +32,7 @@ func newTimeMatcher(field string, op string, value string, raw string) (Matcher,
 	return timeMatcher{
 		op:       op,
 		expected: parsed,
+		timeOnly: timeOnly,
 		raw:      raw,
 	}, nil
 }
@@ -41,15 +43,23 @@ func (m timeMatcher) Match(entry logentry.Entry) bool {
 		return false
 	}
 
+	actual := entry.Time
+	expected := m.expected
+
+	if m.timeOnly {
+		actual = clockTime(entry.Time)
+		expected = clockTime(m.expected)
+	}
+
 	switch m.op {
 	case "gt":
-		return entry.Time.After(m.expected)
+		return actual.After(expected)
 	case "gte":
-		return entry.Time.Equal(m.expected) || entry.Time.After(m.expected)
+		return actual.Equal(expected) || actual.After(expected)
 	case "lt":
-		return entry.Time.Before(m.expected)
+		return actual.Before(expected)
 	case "lte":
-		return entry.Time.Equal(m.expected) || entry.Time.Before(m.expected)
+		return actual.Equal(expected) || actual.Before(expected)
 	default:
 		return false
 	}
@@ -102,30 +112,39 @@ func normalizeTimeOp(op string) string {
 }
 
 // parseFilterTime parses supported filter timestamp formats.
-func parseFilterTime(value string) (time.Time, bool) {
+func parseFilterTime(value string) (time.Time, bool, bool) {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return time.Time{}, false
+		return time.Time{}, false, false
 	}
 
-	layouts := []string{
-		time.RFC3339Nano,
-		time.RFC3339,
-		"02/Jan/2006:15:04:05 -0700",
-		"2006-01-02 15:04:05",
-		"2006-01-02 15:04:05.000",
-		"2006-01-02T15:04:05",
-		"2006-01-02T15:04:05.000",
-		"15:04:05",
-		"15:04",
+	layouts := []struct {
+		value    string
+		timeOnly bool
+	}{
+		{value: time.RFC3339Nano},
+		{value: time.RFC3339},
+		{value: "02/Jan/2006:15:04:05 -0700"},
+		{value: "2006-01-02 15:04:05"},
+		{value: "2006-01-02 15:04:05.000"},
+		{value: "2006-01-02T15:04:05"},
+		{value: "2006-01-02T15:04:05.000"},
+		{value: "15:04:05", timeOnly: true},
+		{value: "15:04", timeOnly: true},
 	}
 
 	for _, layout := range layouts {
-		parsed, err := time.Parse(layout, value)
+		parsed, err := time.Parse(layout.value, value)
 		if err == nil {
-			return parsed, true
+			return parsed, layout.timeOnly, true
 		}
 	}
 
-	return time.Time{}, false
+	return time.Time{}, false, false
+}
+
+func clockTime(value time.Time) time.Time {
+	hour, minute, second := value.Clock()
+
+	return time.Date(0, time.January, 1, hour, minute, second, value.Nanosecond(), time.UTC)
 }

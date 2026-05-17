@@ -337,7 +337,14 @@ func tokenizeExpression(expr string) ([]exprToken, error) {
 			end := index
 			for end < len(expr) {
 				switch expr[end] {
-				case ' ', '\t', '\n', '\r', '(', ')', ':', '>', '<', '!', '=':
+				case ' ', '\t', '\n', '\r', '(', ')', '>', '<', '!', '=':
+					goto done
+				case ':':
+					if isEmbeddedTimeSeparator(expr, end) {
+						end++
+						continue
+					}
+
 					goto done
 				}
 				end++
@@ -350,6 +357,18 @@ func tokenizeExpression(expr string) ([]exprToken, error) {
 	}
 
 	return tokens, nil
+}
+
+func isEmbeddedTimeSeparator(input string, index int) bool {
+	if index <= 0 || index >= len(input)-1 {
+		return false
+	}
+
+	return input[index] == ':' && isDigit(input[index-1]) && isDigit(input[index+1])
+}
+
+func isDigit(value byte) bool {
+	return value >= '0' && value <= '9'
 }
 
 func readQuotedToken(input string) (string, int, error) {
