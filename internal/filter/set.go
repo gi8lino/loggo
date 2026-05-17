@@ -2,6 +2,7 @@ package filter
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/gi8lino/loggo/internal/logentry"
@@ -81,7 +82,36 @@ func profileRuleMatcher(rule profile.Rule) (Matcher, error) {
 		op = "contains"
 	}
 
-	expr := strings.TrimSpace(fmt.Sprintf("%s %s %v", rule.Field, op, rule.Value))
+	value := profileRuleValue(rule.Value)
+	raw := strings.TrimSpace(fmt.Sprintf("%s %s %s", rule.Field, op, value))
 
-	return ParseExpression(expr)
+	return newMatcher(rule.Field, op, value, raw)
+}
+
+func profileRuleValue(value any) string {
+	switch typed := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return typed
+	case []string:
+		return strings.Join(typed, ",")
+	case []any:
+		parts := make([]string, 0, len(typed))
+		for _, item := range typed {
+			parts = append(parts, profileRuleValue(item))
+		}
+
+		return strings.Join(parts, ",")
+	case fmt.Stringer:
+		return typed.String()
+	case bool:
+		return strconv.FormatBool(typed)
+	case int:
+		return strconv.Itoa(typed)
+	case int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+		return fmt.Sprint(typed)
+	default:
+		return fmt.Sprint(typed)
+	}
 }
