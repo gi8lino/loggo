@@ -132,11 +132,82 @@ func mergeFile(cfg *Config, path string) error {
 		}
 
 		for name, p := range next.Profiles {
-			cfg.Profiles[name] = profile.Normalize(name, p)
+			cfg.Profiles[name] = mergeProfile(name, cfg.Profiles[name], p)
 		}
 	}
 
 	return nil
+}
+
+func mergeProfile(name string, base profile.Profile, overlay profile.Profile) profile.Profile {
+	merged := base
+
+	if overlay.Parser != "" {
+		merged.Parser = overlay.Parser
+	}
+	if overlay.Regex != "" {
+		merged.Regex = overlay.Regex
+	}
+	if overlay.TimestampField != "" {
+		merged.TimestampField = overlay.TimestampField
+	}
+	if overlay.LevelField != "" {
+		merged.LevelField = overlay.LevelField
+	}
+	if overlay.MessageField != "" {
+		merged.MessageField = overlay.MessageField
+	}
+	if overlay.Fields != nil {
+		merged.Fields = append([]string(nil), overlay.Fields...)
+	}
+	if overlay.FixedFields {
+		merged.FixedFields = true
+	}
+	if overlay.HiddenFields != nil {
+		merged.HiddenFields = append([]string(nil), overlay.HiddenFields...)
+	}
+	if overlay.Format != "" {
+		merged.Format = overlay.Format
+	}
+	if overlay.Split.Delimiter != "" {
+		merged.Split.Delimiter = overlay.Split.Delimiter
+	}
+	if overlay.Split.Fields != nil {
+		merged.Split.Fields = append([]string(nil), overlay.Split.Fields...)
+	}
+	if overlay.Filters.Include != nil {
+		merged.Filters.Include = append([]profile.Rule(nil), overlay.Filters.Include...)
+	}
+	if overlay.Filters.Exclude != nil {
+		merged.Filters.Exclude = append([]profile.Rule(nil), overlay.Filters.Exclude...)
+	}
+	if overlay.Colors.Levels != nil {
+		merged.Colors.Levels = cloneStringMap(overlay.Colors.Levels)
+	}
+	if overlay.Colors.Fields != nil {
+		merged.Colors.Fields = cloneStringMap(overlay.Colors.Fields)
+	}
+	if overlay.Colors.Timestamp != "" {
+		merged.Colors.Timestamp = overlay.Colors.Timestamp
+	}
+	if overlay.Colors.Message != "" {
+		merged.Colors.Message = overlay.Colors.Message
+	}
+
+	return profile.Normalize(name, merged)
+}
+
+func cloneStringMap(input map[string]string) map[string]string {
+	if input == nil {
+		return nil
+	}
+
+	cloned := make(map[string]string, len(input))
+	for key, value := range input {
+		cloned[key] = value
+	}
+
+	return cloned
 }
 
 // globalConfigPath returns the user-level config path.
