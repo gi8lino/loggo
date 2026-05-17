@@ -1,241 +1,170 @@
 # loggo
 
-`loggo` is a small terminal UI for reading, searching, filtering, and inspecting streamed logs.
+`loggo` is a terminal UI for live log streams.
 
-It is designed for pipelines like:
+It sits directly in a Unix pipe, keeps a bounded in-memory buffer, parses structured fields when possible, and lets you search, filter, inspect, and switch profiles without restarting the stream.
 
 ```bash
-kubectl logs -f pod-name | loggo
-docker logs -f container-name | loggo
+kubectl logs -f deploy/api | loggo
+docker logs -f billing-worker | loggo
 tail -f app.log | loggo
 journalctl -f | loggo
 ```
 
-`loggo` keeps reading from `stdin`, stores raw lines in a bounded buffer, parses them with the active profile, and lets you interactively search, filter, exclude, inspect, and switch profiles.
+## Why it exists
+
+Most log tools are great at one of these jobs, but not all of them at once:
+
+- stream continuously
+- stay fast on noisy output
+- expose structured fields for filtering
+- let you keep working without leaving the terminal
+
+`loggo` is meant to be the tool you drop into a pipe when `less` is too static, `grep` is too blunt, and a full external log UI would be overkill.
 
 ## Features
 
-- Streams logs from `stdin`
-- Uses a TUI optimized for live logs
-- Keeps raw lines so profiles can be switched while running
-- Supports structured and unstructured logs
-- Supports JSON, logfmt, regex, split, raw, and auto parsing
-- Includes a built-in Nginx access log profile
-- Supports guided filters with field/operator/value selection
-- Supports wildcard, regex, text, numeric, and basic time filters
-- Highlights search matches without hiding lines
-- Filters and excludes logs without restarting the pipeline
-- Shows badges when search, filters, or excludes are active
-- Uses batched ingestion and frame-based rendering for large log streams
-
-Yes — then I’d change the **Install** section to make releases the primary path and keep `go install` / local build as development options only.
-
-Replace the install section with:
+- Reads from `stdin` and works naturally in pipelines
+- Supports `auto`, `json`, `logfmt`, `regex`, `split`, and `raw` parsing
+- Keeps raw lines so profiles can be switched while the stream is running
+- Supports guided include and exclude filters
+- Supports text, wildcard, regex, numeric, boolean, and time-aware filters
+- Highlights search matches without hiding non-matching lines
+- Lets you inspect one entry in detail
+- Uses batched ingestion and frame-based rendering for smoother live streams
+- Ships with built-in profiles, including `nginx`
 
 ## Install
 
-Download the latest prebuilt binary from the GitHub releases page:
+Download a release binary from:
+
+[github.com/gi8lino/loggo/releases](https://github.com/gi8lino/loggo/releases)
+
+Extract the archive and place `loggo` somewhere in your `PATH`.
+
+For local development:
 
 ```bash
-https://github.com/gi8lino/loggo/releases
+go install github.com/gi8lino/loggo/cmd@latest
 ```
 
-Pick the archive for your platform, extract it, and place the `loggo` binary somewhere in your `PATH`.
+Or build from source:
+
+```bash
+git clone https://github.com/gi8lino/loggo.git
+cd loggo
+go build ./cmd
+```
 
 ## Quick start
 
+Basic stream:
+
 ```bash
-kubectl logs -f pod-name | loggo
+kubectl logs -f deploy/api | loggo
 ```
 
-Use a profile:
+Start with a profile:
 
 ```bash
-kubectl logs -f pod-name | loggo --profile json
-```
-
-Use the built-in Nginx profile:
-
-```bash
-kubectl logs -f nginx-pod | loggo --profile nginx
+kubectl logs -f deploy/nginx | loggo --profile nginx
 ```
 
 Start with a search:
 
 ```bash
-kubectl logs -f pod-name | loggo --search timeout
+kubectl logs -f deploy/api | loggo --search timeout
 ```
 
 Start with an include filter:
 
 ```bash
-kubectl logs -f pod-name | loggo --filter status>=500
+kubectl logs -f deploy/api | loggo --filter 'status >= 500'
 ```
 
 Start with an exclude filter:
 
 ```bash
-kubectl logs -f pod-name | loggo --exclude 'user_agent wildcard *kube-probe*'
+kubectl logs -f deploy/api | loggo --exclude 'user_agent wildcard *kube-probe*'
 ```
 
 ## Keyboard controls
 
-| Key           | Action                              |
-| ------------- | ----------------------------------- |
-| `/`           | Search text                         |
-| `c`           | Clear search                        |
-| `n`           | Next search match                   |
-| `N`           | Previous search match               |
-| `f`           | Add guided include filter           |
-| `x`           | Add guided exclude filter           |
-| `F`           | Remove last include filter          |
-| `X`           | Remove last exclude filter          |
-| `r`           | Reset search, filters, and excludes |
-| `p`           | Switch profile                      |
-| `space`       | Pause or resume viewport updates    |
-| `a`           | Jump to latest and follow           |
-| `enter`       | Inspect selected log entry          |
-| `up/down`     | Move selection                      |
-| `pgup/pgdown` | Move selection faster               |
-| `home/end`    | Jump to top or bottom               |
-| `?`           | Show help                           |
-| `q`           | Quit                                |
+| Key | Action |
+| --- | --- |
+| `/` | Search text |
+| `c` | Clear search |
+| `n` / `N` | Next / previous search match |
+| `f` | Add guided include filter |
+| `x` | Add guided exclude filter |
+| `F` / `X` | Remove last include / exclude filter |
+| `]` / `[` | Increase / decrease filter context |
+| `v` | Choose visible columns |
+| `H` | Toggle column headers |
+| `p` | Switch profile |
+| `space` | Pause or resume viewport updates |
+| `a` | Jump to latest and follow |
+| `enter` | Inspect selected entry |
+| `up` / `down` | Move selection |
+| `pgup` / `pgdown` | Move faster |
+| `home` / `end` | Jump to top or bottom |
+| `h` / `l` | Scroll horizontally |
+| `r` | Reset search, filters, and columns to profile defaults |
+| `?` | Show help |
+| `q` | Quit |
 
-## Search vs filter
+Vim-style navigation is also supported with `j`, `k`, `gg`, and `G`.
 
-Search is temporary and non-destructive.
+## Search and filters
+
+Search highlights matches but keeps the full result set visible.
 
 ```text
 / timeout
 ```
 
-Search:
-
-- highlights matching lines
-- allows jumping with `n` and `N`
-- does not hide non-matching lines
-- does not change the visible result set
-
-Filters are persistent until removed or reset.
-
-```text
-f
-```
-
-Filters:
-
-- hide non-matching lines
-- are based on parsed fields
-- stay active while new logs arrive
-- show a `FILTERED` badge while active
-
-Excludes are persistent noise filters.
-
-```text
-x
-```
-
-Excludes:
-
-- hide matching lines
-- are useful for health checks, probes, metrics, and other noise
-- show a `HIDDEN` badge while active
-
-## Guided filters
-
-Press `f` to add an include filter or `x` to add an exclude filter.
-
-The guided flow is:
-
-```text
-select field
-select operator
-enter value
-```
-
-Example fields:
-
-```text
-raw
-time
-level
-message
-service
-method
-path
-status
-user_agent
-remote_addr
-request_id
-trace_id
-```
-
-Example operators:
-
-```text
-contains
-equals
-wildcard
-regex
-exists
-not equals
-greater than
-greater or equal
-less than
-less or equal
-in list
-after
-before
-```
-
-Example filters:
+Filters change which log lines remain visible.
 
 ```text
 status >= 500
-method = PROPFIND
-path wildcard /remote.php/dav/*
-user_agent wildcard *kube-probe*
-remote_user = User123
-service in api,worker
+level = ERROR and service = orders-api
+not (path wildcard /health* or path wildcard /metrics*)
 time after 2026-05-12T13:14:00Z
-time before 2026-05-12T13:15:00Z
+time before 15:04
 ```
 
-## Badges
+Field-aware search also works directly from `/`:
 
-The state bar shows badges when the visible log list is not the full unmodified stream.
-
-| Badge      | Meaning                                |
-| ---------- | -------------------------------------- |
-| `SEARCH`   | A search query is active               |
-| `FILTERED` | One or more include filters are active |
-| `HIDDEN`   | One or more exclude filters are active |
+```text
+trace_id:abc123
+level = ERROR and status >= 500
+```
 
 ## Profiles
 
-Profiles tell `loggo` how to parse, display, color, and filter a log stream.
+Profiles describe how a stream should be parsed, displayed, colored, and pre-filtered.
 
-Profiles can be loaded from:
+Config is loaded from:
 
 ```text
 ~/.config/loggo/config.yaml
 ./.loggo.yaml
 ```
 
-Or from an explicit config path:
+You can also pass an explicit config:
 
 ```bash
 loggo --config ./loggo.yaml
 ```
 
-You can also use environment variables:
+Or set environment variables:
 
 ```bash
 LOGGO_CONFIG=./loggo.yaml
 LOGGO_PROFILE=app-json
 ```
 
-Profile selection order:
+Profile resolution order:
 
 ```text
 1. --profile
@@ -244,7 +173,7 @@ Profile selection order:
 4. auto
 ```
 
-## Example config
+### Example config
 
 ```yaml
 defaultProfile: app-json
@@ -277,57 +206,13 @@ profiles:
         status: yellow
       timestamp: dim
       message: reset
-
-  nginx:
-    parser: regex
-    regex: '^(?P<remote_addr>\S+) (?P<remote_ident>\S+) (?P<remote_user>\S+) \[(?P<time>[^\]]+)\] "(?P<method>\S+) (?P<path>\S+)(?: (?P<protocol>[^"]+))?" (?P<status>\d+) (?P<bytes>\d+) "(?P<referer>[^"]*)" "(?P<user_agent>[^"]*)"(?: "(?P<forwarded_for>[^"]*)")?'
-    timestampField: time
-    messageField: path
-    fields:
-      - remote_addr
-      - remote_user
-      - method
-      - path
-      - status
-      - bytes
-      - user_agent
-      - forwarded_for
-    filters:
-      exclude:
-        - field: path
-          op: equals
-          value: /status.php
-        - field: user_agent
-          op: wildcard
-          value: "*kube-probe*"
-    colors:
-      fields:
-        method: cyan
-        status: yellow
-        remote_addr: dim
-        user_agent: dim
-
-  pipe:
-    parser: split
-    timestampField: time
-    levelField: level
-    messageField: message
-    split:
-      delimiter: "|"
-      fields:
-        - time
-        - level
-        - component
-        - message
-    fields:
-      - component
 ```
 
 ## Parsers
 
 ### `auto`
 
-Tries structured parsers and falls back to raw text.
+Tries structured parsers first, then falls back to raw text.
 
 ```yaml
 parser: auto
@@ -347,18 +232,12 @@ messageField: msg
 Example:
 
 ```json
-{
-  "ts": "2026-05-12T13:14:31Z",
-  "level": "info",
-  "service": "api",
-  "msg": "request finished",
-  "status": 200
-}
+{"ts":"2026-05-12T13:14:31Z","level":"info","service":"api","msg":"request finished","status":200}
 ```
 
 ### `logfmt`
 
-Parses logfmt-style key-value logs.
+Parses `key=value` logs with quoted values.
 
 ```yaml
 parser: logfmt
@@ -385,11 +264,9 @@ levelField: level
 messageField: message
 ```
 
-Named groups become filterable fields.
-
 ### `split`
 
-Splits logs by delimiter and maps columns to field names.
+Splits a line by delimiter and maps the parts to field names.
 
 ```yaml
 parser: split
@@ -404,17 +281,17 @@ split:
 
 ### `raw`
 
-Keeps the full line as raw text.
+Keeps the full line as text and performs lightweight level detection.
 
 ```yaml
 parser: raw
 ```
 
-Raw mode still tries to detect common log levels such as `ERROR`, `WARN`, `INFO`, and `DEBUG`.
+## Built-in profiles
 
-## Built-in Nginx profile
+### `nginx`
 
-`loggo` includes a built-in `nginx` profile for access logs like:
+The built-in `nginx` profile parses access logs like:
 
 ```text
 10.1.0.2 - User123 [12/May/2026:13:14:31 +0000] "PROPFIND /remote.php/dav/files/User123/ HTTP/1.1" 207 246 "-" "Mozilla/5.0" "10.0.0.91"
@@ -423,24 +300,7 @@ Raw mode still tries to detect common log levels such as `ERROR`, `WARN`, `INFO`
 Use it with:
 
 ```bash
-kubectl logs -f nginx-pod | loggo --profile nginx
-```
-
-The profile extracts fields such as:
-
-```text
-remote_addr
-remote_ident
-remote_user
-time
-method
-path
-protocol
-status
-bytes
-referer
-user_agent
-forwarded_for
+kubectl logs -f deploy/nginx | loggo --profile nginx
 ```
 
 Useful filters:
@@ -455,31 +315,32 @@ remote_user = User123
 
 ## CLI flags
 
-| Flag                        | Description                                                        |
-| --------------------------- | ------------------------------------------------------------------ |
-| `-c`, `--config PATH`       | Path to YAML config file                                           |
-| `-p`, `--profile NAME`      | Profile to load                                                    |
-| `--parser TYPE`             | Parser override: `auto`, `json`, `logfmt`, `regex`, `split`, `raw` |
-| `--split DELIM`             | Delimiter for split parser                                         |
-| `--fields LIST`             | Comma-separated fields to render                                   |
-| `--format FORMAT`           | Output format using `{field}` placeholders                         |
-| `-s`, `--search TEXT`       | Initial search query                                               |
-| `-f`, `--filter LIST`       | Comma-separated initial include filters                            |
-| `-x`, `--exclude LIST`      | Comma-separated initial exclude filters                            |
-| `--buffer-size N`           | Maximum raw lines kept in memory                                   |
-| `--batch-size N`            | Number of lines grouped into one UI update                         |
-| `--flush-interval DURATION` | Maximum delay before flushing a partial input batch                |
-| `-d`, `--debug`             | Enable debug output                                                |
+| Flag | Description |
+| --- | --- |
+| `-c`, `--config PATH` | YAML config path |
+| `-p`, `--profile NAME` | Profile to load |
+| `--parser TYPE` | Parser override: `auto`, `json`, `logfmt`, `regex`, `split`, `raw` |
+| `--split DELIM` | Delimiter for the split parser |
+| `--fields LIST` | Comma-separated fields to render |
+| `--hide-field LIST` | Comma-separated fields hidden from display |
+| `--format FORMAT` | Output format using `{field}` placeholders |
+| `-s`, `--search TEXT` | Initial search query |
+| `-f`, `--filter LIST` | Initial include filters |
+| `-x`, `--exclude LIST` | Initial exclude filters |
+| `--buffer-size N` | Maximum raw lines kept in memory |
+| `--batch-size N` | Number of lines grouped into one UI update |
+| `--flush-interval DURATION` | Maximum delay before flushing a partial input batch |
+| `-d`, `--debug` | Enable debug output |
 
-## Output formatting
+## Formatting
 
-Profiles can define a custom format:
+Profiles can define a custom format string:
 
 ```yaml
 format: "{time} {level} {service} {method} {path} {status} {msg}"
 ```
 
-Fields are replaced from:
+Placeholders are filled from:
 
 ```text
 raw
@@ -493,7 +354,7 @@ parsed fields
 
 ## Performance model
 
-`loggo` separates ingestion from rendering.
+`loggo` separates ingestion from rendering:
 
 ```text
 stdin reader
@@ -503,9 +364,7 @@ stdin reader
   -> TUI renderer
 ```
 
-This avoids rendering once per log line.
-
-Important defaults:
+Default tuning:
 
 ```text
 batch-size:      300
@@ -513,37 +372,10 @@ flush-interval:  33ms
 buffer-size:     5000
 ```
 
-For very large historical logs:
+For large historical files:
 
 ```bash
 cat huge.log | loggo --batch-size 2000 --flush-interval 50ms --buffer-size 50000
-```
-
-For live Kubernetes logs:
-
-```bash
-kubectl logs -f pod-name | loggo --batch-size 300 --flush-interval 33ms
-```
-
-## Environment variables
-
-`loggo` uses the `LOGGO_` prefix for CLI/env integration.
-
-Special environment variables:
-
-```text
-LOGGO_CONFIG
-LOGGO_PROFILE
-```
-
-Examples:
-
-```bash
-LOGGO_PROFILE=nginx kubectl logs -f nginx-pod | loggo
-```
-
-```bash
-LOGGO_CONFIG=./loggo.yaml kubectl logs -f app-pod | loggo
 ```
 
 ## Development
@@ -554,13 +386,7 @@ Run tests:
 go test ./...
 ```
 
-Run locally:
-
-```bash
-go run ./cmd
-```
-
-Test with sample JSON logs:
+Run the binary against sample JSON logs:
 
 ```bash
 printf '%s\n' \
@@ -569,36 +395,6 @@ printf '%s\n' \
 | go run ./cmd --profile json
 ```
 
-Test with Nginx logs:
-
-```bash
-cat nginx.log | go run ./cmd --profile nginx
-```
-
-## Project goals
-
-`loggo` aims to be:
-
-- small
-- fast enough for noisy streams
-- easy to pipe into
-- profile-based
-- useful for Kubernetes, Docker, files, and any other log stream
-- simpler than a log platform
-- more interactive than `grep`
-
-## Non-goals
-
-`loggo` is not intended to be:
-
-- a log storage system
-- a distributed log platform
-- a metrics backend
-- a replacement for Loki, Elasticsearch, or OpenSearch
-- a full query language
-
-It is a local terminal tool for inspecting live or historical log streams.
-
 ## License
 
-This project is licensed under the Apache 2.0 License. See the [LICENSE](LICENSE) file for details.
+Apache 2.0. See [LICENSE](https://github.com/gi8lino/loggo/blob/main/LICENSE).
