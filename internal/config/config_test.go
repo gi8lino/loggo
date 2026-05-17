@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gi8lino/loggo/internal/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -67,4 +68,32 @@ profiles:
 	assert.Equal(t, "ts", app.TimestampField)
 	assert.Equal(t, "severity", app.LevelField)
 	assert.Equal(t, []string{"secret"}, app.HiddenFields)
+}
+
+func TestSaveProfileCreatesOrUpdatesProfile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".loggo.yaml")
+
+	err := SaveProfile(path, "snapshot", profile.Profile{
+		Parser:         profile.ParserJSON,
+		TimestampField: "ts",
+		MessageField:   "msg",
+		Fields:         []string{"service", "status"},
+		HiddenFields:   []string{"trace_id"},
+		Filters: profile.Filters{
+			Include: []profile.Rule{{Expr: "status >= 500"}},
+		},
+	})
+	require.NoError(t, err)
+
+	cfg, _, err := Load([]string{path}, func(string) string { return "" })
+	require.NoError(t, err)
+
+	snapshot, err := cfg.ResolveProfile("snapshot", func(string) string { return "" })
+	require.NoError(t, err)
+
+	assert.Equal(t, profile.ParserJSON, snapshot.Parser)
+	assert.Equal(t, []string{"service", "status"}, snapshot.Fields)
+	assert.Equal(t, []string{"trace_id"}, snapshot.HiddenFields)
+	require.Len(t, snapshot.Filters.Include, 1)
+	assert.Equal(t, "status >= 500", snapshot.Filters.Include[0].Expr)
 }

@@ -101,6 +101,7 @@ kubectl logs -f deploy/api | loggo --exclude 'user_agent wildcard *kube-probe*'
 | `]` / `[` | Increase / decrease filter context |
 | `v` | Choose visible columns |
 | `H` | Toggle column headers |
+| `e` | Export the current view as a reusable profile |
 | `p` | Switch profile |
 | `space` | Pause or resume viewport updates |
 | `a` | Jump to latest and follow |
@@ -172,6 +173,20 @@ Profile resolution order:
 3. defaultProfile from config
 4. auto
 ```
+
+### Export the current view
+
+Press `e` inside the TUI to export the current profile snapshot.
+
+The exported profile includes:
+
+- the active parser and parser settings
+- the currently visible column set
+- the current hidden columns
+- the active include filters
+- the active exclude filters
+
+`loggo` saves the exported profile into the local `./.loggo.yaml` file so it is available on the next run in the same directory tree.
 
 ### Example config
 

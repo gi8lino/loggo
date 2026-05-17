@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/gi8lino/loggo/internal/logentry"
+	"github.com/gi8lino/loggo/internal/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -214,4 +215,49 @@ func TestHandleKeySupportsHorizontalScrolling(t *testing.T) {
 	next, _ = updated.handleKey(tea.KeyPressMsg{Code: tea.KeyLeft})
 	updated = next.(Model)
 	assert.Equal(t, 0, updated.horizontalOffset)
+}
+
+func TestApplyInputExportsCurrentProfileSnapshot(t *testing.T) {
+	var (
+		savedName    string
+		savedProfile profile.Profile
+	)
+
+	model := Model{
+		mode:  modeExportProfile,
+		input: "incident-view",
+		activeProfile: profile.Normalize("json", profile.Profile{
+			Parser: profile.ParserJSON,
+			Fields: []string{"service", "status"},
+			Filters: profile.Filters{
+				Exclude: []profile.Rule{{Field: "path", Op: "equals", Value: "/health"}},
+			},
+		}),
+		include:      []string{"status >= 500"},
+		exclude:      []string{"user_agent wildcard *kube-probe*"},
+		hiddenFields: fieldSet([]string{"status"}),
+		parsed: []logentry.Entry{
+			{Fields: map[string]string{"service": "billing", "status": "503", "method": "GET"}},
+		},
+		visible: []int{0},
+		exportProfile: func(name string, p profile.Profile) (string, error) {
+			savedName = name
+			savedProfile = p
+			return "/tmp/.loggo.yaml", nil
+		},
+	}
+
+	model.applyInput()
+
+	assert.Equal(t, modeNormal, model.mode)
+	assert.Equal(t, "incident-view", savedName)
+	assert.Equal(t, profile.ParserJSON, savedProfile.Parser)
+	assert.Equal(t, []string{"service", "method"}, savedProfile.Fields)
+	assert.Equal(t, []string{"status"}, savedProfile.HiddenFields)
+	require.Len(t, savedProfile.Filters.Include, 1)
+	assert.Equal(t, "status >= 500", savedProfile.Filters.Include[0].Expr)
+	require.Len(t, savedProfile.Filters.Exclude, 2)
+	assert.Equal(t, "/health", savedProfile.Filters.Exclude[0].Value)
+	assert.Equal(t, "user_agent wildcard *kube-probe*", savedProfile.Filters.Exclude[1].Expr)
+	assert.Contains(t, model.notice, "saved profile incident-view")
 }

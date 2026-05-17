@@ -50,6 +50,7 @@ type Rule struct {
 	Field string `yaml:"field"`
 	Op    string `yaml:"op"`
 	Value any    `yaml:"value"`
+	Expr  string `yaml:"expr,omitempty"`
 }
 
 // Colors describes color output rules.

@@ -16,6 +16,7 @@ func (m Model) helpView(width int, height int) []string {
 		"[            show one less line of filter context",
 		"v            choose visible columns",
 		"H            hide or show column headers",
+		"e            export current view as a reusable profile",
 		"r            reset search, filters, and columns to profile defaults",
 		"p            switch profile",
 		"space        pause or resume viewport",

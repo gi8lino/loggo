@@ -24,6 +24,7 @@ type InitialState struct {
 	Include       []string
 	Exclude       []string
 	HiddenFields  []string
+	ExportProfile func(string, profile.Profile) (string, error)
 	Overrides     profile.RuntimeOverrides
 	StopStream    func()
 	BufferSize    int
@@ -56,6 +57,7 @@ const (
 	modeProfile
 	modeInspect
 	modeHelp
+	modeExportProfile
 )
 
 // filterOperator describes one guided filter operator.
@@ -112,6 +114,8 @@ type Model struct {
 	loadedConfigs        []string
 	version              string
 	commit               string
+	exportProfile        func(string, profile.Profile) (string, error)
+	notice               string
 }
 
 // NewModel creates a TUI model from profiles and initial state.
@@ -150,6 +154,7 @@ func NewModel(
 		search:        initial.Search,
 		include:       append([]string{}, initial.Include...),
 		exclude:       append([]string{}, initial.Exclude...),
+		exportProfile: initial.ExportProfile,
 		overrides:     initial.Overrides,
 		stopStream:    initial.StopStream,
 		hiddenFields:  fieldSet(initial.HiddenFields),

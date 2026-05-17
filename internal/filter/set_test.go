@@ -46,3 +46,24 @@ func TestNewSetSupportsProfileRegexRulesWithSpaces(t *testing.T) {
 	nonMatching.Message = "GET /admin/users"
 	assert.False(t, set.Match(nonMatching))
 }
+
+func TestNewSetSupportsProfileExpressionRules(t *testing.T) {
+	set, err := NewSet(profile.Normalize("expr", profile.Profile{
+		Filters: profile.Filters{
+			Include: []profile.Rule{
+				{Expr: `level = ERROR and status >= 500`},
+			},
+		},
+	}), nil, nil)
+	require.NoError(t, err)
+
+	matching := logentry.New("matching")
+	matching.Level = "ERROR"
+	matching.Fields["status"] = "503"
+	assert.True(t, set.Match(matching))
+
+	nonMatching := logentry.New("non-matching")
+	nonMatching.Level = "INFO"
+	nonMatching.Fields["status"] = "503"
+	assert.False(t, set.Match(nonMatching))
+}

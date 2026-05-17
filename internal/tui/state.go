@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"maps"
 	"slices"
 	"strings"
@@ -779,6 +780,82 @@ func compileSearchMatcher(query string) filter.Matcher {
 	}
 
 	return matcher
+}
+
+func (m Model) defaultExportProfileName() string {
+	base := strings.TrimSpace(m.activeProfile.Name)
+	if base == "" {
+		base = "profile"
+	}
+
+	return base + "-snapshot"
+}
+
+func (m *Model) exportActiveProfile(name string) {
+	if m.exportProfile == nil {
+		m.err = fmt.Errorf("profile export is not configured")
+		return
+	}
+
+	exported := m.snapshotProfile(name)
+	path, err := m.exportProfile(name, exported)
+	if err != nil {
+		m.err = err
+		m.notice = ""
+		return
+	}
+
+	m.input = ""
+	m.mode = modeNormal
+	m.err = nil
+	m.notice = "saved profile " + name + " to " + path
+}
+
+func (m Model) snapshotProfile(name string) profile.Profile {
+	snapshot := m.activeProfile
+	snapshot.Name = name
+	snapshot.Fields = append([]string(nil), m.displayFields()...)
+	snapshot.HiddenFields = m.exportHiddenFields()
+	snapshot.Filters = profile.Filters{
+		Include: appendRuntimeFilterRules(snapshot.Filters.Include, m.include),
+		Exclude: appendRuntimeFilterRules(snapshot.Filters.Exclude, m.exclude),
+	}
+
+	return profile.Normalize(name, snapshot)
+}
+
+func appendRuntimeFilterRules(base []profile.Rule, expressions []string) []profile.Rule {
+	rules := append([]profile.Rule(nil), base...)
+
+	for _, expr := range expressions {
+		expr = strings.TrimSpace(expr)
+		if expr == "" {
+			continue
+		}
+
+		rules = append(rules, profile.Rule{Expr: expr})
+	}
+
+	return rules
+}
+
+func (m Model) exportHiddenFields() []string {
+	fields := []string{}
+	seen := map[string]struct{}{}
+
+	for _, field := range m.buildColumnFields() {
+		if !hasField(m.hiddenFields, field) {
+			continue
+		}
+		if _, ok := seen[strings.ToLower(field)]; ok {
+			continue
+		}
+
+		seen[strings.ToLower(field)] = struct{}{}
+		fields = append(fields, field)
+	}
+
+	return fields
 }
 
 // parseQuickSearch converts field:value search syntax into a filter matcher.

@@ -251,3 +251,56 @@ func fileExists(path string) bool {
 
 	return !info.IsDir()
 }
+
+// ExportLocalProfile writes or updates one profile in the local .loggo.yaml file.
+func ExportLocalProfile(name string, p profile.Profile) (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	path := filepath.Join(dir, localConfigName)
+
+	if err := SaveProfile(path, name, p); err != nil {
+		return "", err
+	}
+
+	return path, nil
+}
+
+// SaveProfile writes or updates one named profile in a YAML config file.
+func SaveProfile(path string, name string, p profile.Profile) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return errors.New("profile name must not be empty")
+	}
+
+	cfg := Config{}
+	if fileExists(path) {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", path, err)
+		}
+
+		if err := yaml.Unmarshal(content, &cfg); err != nil {
+			return fmt.Errorf("parse %s: %w", path, err)
+		}
+	}
+
+	if cfg.Profiles == nil {
+		cfg.Profiles = map[string]profile.Profile{}
+	}
+
+	cfg.Profiles[name] = profile.Normalize(name, p)
+
+	content, err := yaml.Marshal(&cfg)
+	if err != nil {
+		return fmt.Errorf("marshal %s: %w", path, err)
+	}
+
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+
+	return nil
+}

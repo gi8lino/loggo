@@ -89,6 +89,7 @@ func Run(
 		Search:        parsed.Search,
 		Include:       parsed.Filters,
 		Exclude:       parsed.Excludes,
+		ExportProfile: config.ExportLocalProfile,
 		HiddenFields:  activeProfile.HiddenFields,
 		Overrides:     overrides,
 		StopStream:    cancelIngest,

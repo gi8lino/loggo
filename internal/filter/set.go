@@ -77,6 +77,10 @@ func (s *Set) Match(entry logentry.Entry) bool {
 
 // profileRuleMatcher converts a profile rule into a matcher.
 func profileRuleMatcher(rule profile.Rule) (Matcher, error) {
+	if expr := strings.TrimSpace(rule.Expr); expr != "" {
+		return ParseExpression(expr)
+	}
+
 	op := strings.TrimSpace(rule.Op)
 	if op == "" {
 		op = "contains"

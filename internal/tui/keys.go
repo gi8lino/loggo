@@ -14,7 +14,7 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	switch m.mode {
-	case modeSearch, modeFilterValue, modeExcludeValue:
+	case modeSearch, modeFilterValue, modeExcludeValue, modeExportProfile:
 		return m.handleInputKey(msg), nil
 	case modeFilterField, modeExcludeField:
 		return m.handleFilterFieldKey(msg), nil
@@ -70,6 +70,9 @@ func (m Model) handleNormalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "p":
 		m.mode = modeProfile
 		m.profileCursor = m.activeProfileIndex()
+	case "e":
+		m.mode = modeExportProfile
+		m.input = m.defaultExportProfileName()
 	case "?":
 		m.mode = modeHelp
 	case "enter":
@@ -376,6 +379,11 @@ func (m *Model) applyInput() {
 	case modeFilterValue, modeExcludeValue:
 		if value != "" {
 			m.applyGuidedFilter(value)
+			return
+		}
+	case modeExportProfile:
+		if value != "" {
+			m.exportActiveProfile(value)
 			return
 		}
 	}

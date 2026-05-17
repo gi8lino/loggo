@@ -152,6 +152,9 @@ func (m Model) activeLine() string {
 	if m.err != nil {
 		line += "   " + errorStyle.Render("error: "+m.err.Error())
 	}
+	if m.notice != "" {
+		line += "   " + badgeStyle.Render(m.notice)
+	}
 
 	return dimStyle.Render(line)
 }
@@ -250,6 +253,8 @@ func (m Model) inputLine() string {
 		return "columns> space toggle, enter apply, a show all, d profile default, esc cancel"
 	case modeProfile:
 		return "profile> up/down select, enter apply, esc cancel"
+	case modeExportProfile:
+		return "export profile name> " + m.input
 	case modeInspect:
 		return "inspect> enter/esc close"
 	case modeHelp:
