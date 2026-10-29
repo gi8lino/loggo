@@ -121,7 +121,7 @@ func ParseFlags(args []string, version string) (Options, error) {
 		return Options{}, err
 	}
 
-	opts.OverriddenValues = tf.OverriddenValues()
+	opts.OverriddenValues = tf.Overrides().Values()
 
 	return opts, nil
 }
