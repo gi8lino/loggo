@@ -3,9 +3,9 @@ module github.com/gi8lino/loggo
 go 1.26.7
 
 require (
-	charm.land/bubbletea/v2 v2.1.3
+	charm.land/bubbletea/v2 v2.2.0
 	charm.land/lipgloss/v2 v2.1.1
-	github.com/charmbracelet/x/ansi v0.11.10
+	github.com/charmbracelet/x/ansi v0.12.0
 	github.com/containeroo/tinyflags v0.12.0
 	github.com/stretchr/testify v1.12.1
 	gopkg.in/yaml.v3 v3.0.1
